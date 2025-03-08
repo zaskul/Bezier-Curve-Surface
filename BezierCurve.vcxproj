@@ -148,6 +148,15 @@
   <ItemGroup>
     <ClCompile Include="BezierCurve.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="Objects\teacup.txt">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+    </Text>
+    <Text Include="Objects\teapotCGA.txt">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
+    </Text>
+    <Text Include="Objects\teaspoon.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

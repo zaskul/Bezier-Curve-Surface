@@ -1,8 +1,9 @@
 #include <iostream>
 #include <SDL3/SDL.h>
 #include <vector>
-
-
+#include <fstream>
+#include <string>
+#include <regex>
 
 float calc_bernstein(float vw, int ij) {
     switch (ij)
@@ -119,6 +120,61 @@ void draw_bezier_surface(point_3d xyz[16], float px_density, float scale, SDL_Re
     }
 }
 
+std::vector<std::string> split_string(std::string str, std::string pattern) {
+    std::regex regex_pattern(pattern);
+    std::sregex_token_iterator iter(str.begin(), str.end(), regex_pattern, -1);
+    std::sregex_token_iterator end;
+
+    std::vector<std::string> tokens(iter, end);
+    return tokens;
+}
+
+int calc_matrix_size(std::vector<std::string> input) {
+    int result = 1;
+    while (!input.empty()) {
+        std::string current_value = input.back();
+        input.pop_back();
+        result *= std::stoi(current_value) + 1;
+    }
+    return result;
+}
+
+std::vector<std::vector<point_3d>> read_file() {
+    std::ifstream inputFile("Objects/teapotCGA.txt");
+    if (!inputFile.is_open()) {
+        std::cerr << "File could not be opened" << std::endl;
+    }
+
+    std::string line;
+    std::getline(inputFile, line);
+    int num_of_patches = stoi(line);
+    
+    std::vector<std::vector<point_3d>> points_3d(num_of_patches);
+
+    for (int i = 0; i < points_3d.size(); i++) {
+        std::getline(inputFile, line);
+        int num_of_points = calc_matrix_size(split_string(line, "\\s+"));
+        points_3d[i].reserve(num_of_points);
+        std::cout << "size: " << num_of_points << std::endl;
+        for (int j = 0; j < points_3d[i].size(); j++) {
+            std::getline(inputFile, line);
+            std::vector<std::string> temp_string_points = split_string(line, "\\s+");
+            
+            float temp_z = std::stof(temp_string_points.back());
+            temp_string_points.pop_back();
+            float temp_y = std::stof(temp_string_points.back());
+            temp_string_points.pop_back();
+            float temp_x = std::stof(temp_string_points.back());
+            temp_string_points.pop_back();
+
+            points_3d[i][j] = point_3d(temp_x, temp_y, temp_z);
+        }
+    }
+    
+    return points_3d;
+}
+
+
 int main()
 {
     int width = 640;
@@ -155,36 +211,24 @@ int main()
     points2d.push_back({ 3.0, 2.0 });
     points2d.push_back({ 4.0, 1.0 });
 
-    point_3d temp[16] = {
-        point_3d(1.4, 0.0, 2.4),
-        point_3d(1.4, -0.784, 2.4),
-        point_3d(0.784, -1.4, 2.4),
-        point_3d(0.0, -1.4, 2.4),
-        point_3d(1.3375, 0.0, 2.53125),
-        point_3d(1.3375, -0.749, 2.53125),
-        point_3d(0.749, -1.3375, 2.53125),
-        point_3d(0.0, -1.3375, 2.53125),
-        point_3d(1.4375, 0.0, 2.53125),
-        point_3d(1.4375, -0.805, 2.53125),
-        point_3d(0.805, -1.4375, 2.53125),
-        point_3d(0.0, -1.4375, 2.53125),
-        point_3d(1.5, 0.0, 2.4),
-        point_3d(1.5, -0.84, 2.4),
-        point_3d(0.84, -1.5, 2.4),
-        point_3d(0.0, -1.5, 2.4)
-    };
+    std::vector<std::vector<point_3d>> points = read_file();
+
+    std::cout << points.size() << std::endl;
 
     bool quit = false;
-    SDL_Event e;
-    while (!quit) {
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_EVENT_QUIT) {
-                quit = true;
-            }
-            //draw_bezier_surface(temp, 0.005, 20, renderer);
-            draw_bezier_curve(points2d, px_density, scale, renderer);
-        }
-    }
+    //SDL_Event e;
+    //while (!quit) {
+    //    while (SDL_PollEvent(&e)) {
+    //        if (e.type == SDL_EVENT_QUIT) {
+    //            quit = true;
+    //        }
+    //        /*for (int i = 0; i < points.size(); i++) {
+    //            draw_bezier_surface(points, 0.005, 20, renderer);
+    //        }*/
+    //        draw_bezier_curve(points2d, px_density, scale, renderer);
+    //    }
+    //}
+
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

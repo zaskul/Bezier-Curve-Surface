@@ -19,4 +19,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="Objects\teacup.txt" />
+    <Text Include="Objects\teapotCGA.txt" />
+    <Text Include="Objects\teaspoon.txt" />
+  </ItemGroup>
 </Project>
