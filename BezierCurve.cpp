@@ -35,6 +35,8 @@ struct point_3d {
     float z;
 
     point_3d(float x, float y, float z) : p_2d{x, y}, z(z) {};
+
+    point_3d() : p_2d{ 0, 0 }, z(0) {};
 };
 
 void draw_bezier_curve(std::vector<point_2d> xy, float px_density, float scale, SDL_Renderer* renderer) {
@@ -154,12 +156,10 @@ std::vector<std::vector<point_3d>> read_file() {
     for (int i = 0; i < points_3d.size(); i++) {
         std::getline(inputFile, line);
         int num_of_points = calc_matrix_size(split_string(line, "\\s+"));
-        points_3d[i].reserve(num_of_points);
-        std::cout << "size: " << num_of_points << std::endl;
+        points_3d[i].resize(num_of_points);
         for (int j = 0; j < points_3d[i].size(); j++) {
             std::getline(inputFile, line);
             std::vector<std::string> temp_string_points = split_string(line, "\\s+");
-            
             float temp_z = std::stof(temp_string_points.back());
             temp_string_points.pop_back();
             float temp_y = std::stof(temp_string_points.back());
@@ -213,7 +213,22 @@ int main()
 
     std::vector<std::vector<point_3d>> points = read_file();
 
+    // PRINT CURRENT SET OF POINTS
     std::cout << points.size() << std::endl;
+    int iter = 0;
+    while (!points.empty()) {
+        std::vector<point_3d> temp_vec = points.back();
+        std::cout << iter << std::endl;
+        iter++;
+        while (!temp_vec.empty()) {
+            std::cout << "x: " << temp_vec.back().p_2d.x
+                << " y: " << temp_vec.back().p_2d.y
+                << " z: " << temp_vec.back().z <<
+                std::endl;
+            temp_vec.pop_back();
+        }
+        points.pop_back();
+    }
 
     bool quit = false;
     //SDL_Event e;
