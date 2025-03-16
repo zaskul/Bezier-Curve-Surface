@@ -70,55 +70,40 @@ void draw_bezier_curve(std::vector<point_2d> xy, float px_density, float scale, 
     SDL_RenderPresent(renderer);
 }
 
-void draw_bezier_surface(point_3d xyz[16], float px_density, float scale, SDL_Renderer* renderer) {
+void draw_bezier_surface(std::vector<point_3d> xyz, float px_density, float scale, SDL_Renderer* renderer) {
     for (float v = 0; v <= 1; v += px_density) {
         for (float w = 0; w <= 1; w += px_density) {
             float px = 0;
             float py = 0;
             float pz = 0;
 
+            std::vector<point_3d>::iterator it = xyz.begin();
             for (int i = 0; i < 4; i++) {
                 for (int j = 0; j < 4; j++) {
-                    px += xyz[i * 4 + j].p_2d.x * calc_bernstein(v, i) * calc_bernstein(w, j);
-                    py += xyz[i * 4 + j].p_2d.y * calc_bernstein(v, i) * calc_bernstein(w, j);
-                    pz += xyz[i * 4 + j].z * calc_bernstein(v, i) * calc_bernstein(w, j);
+                    px += it->p_2d.x * calc_bernstein(v, i) * calc_bernstein(w, j);
+                    py += it->p_2d.y * calc_bernstein(v, i) * calc_bernstein(w, j);
+                    pz += it->z * calc_bernstein(v, i) * calc_bernstein(w, j);
+                    it++;
                 }
             }
-            //printf("px: %f, py: %f, pz: %f \n", px, py, pz);
-
-                SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-                if (scale != 0) {
-                    SDL_FRect scaled_pixel_xy = {
-                        px * scale,
-                        py * scale,
-                        scale,
-                        scale
-                    };
-                    SDL_RenderFillRect(renderer, &scaled_pixel_xy);
-
-                    SDL_FRect scaled_pixel_xz = {
-                        px * scale,
-                        pz * scale,
-                        scale,
-                        scale
-                    };
-                    SDL_RenderFillRect(renderer, &scaled_pixel_xz);
-
-                    SDL_FRect scaled_pixel_yz = {
-                        py * scale,
-                        pz * scale,
-                        scale,
-                        scale
-                    };
-                    SDL_RenderFillRect(renderer, &scaled_pixel_yz);
-                }
-                else {
-                    SDL_RenderPoint(renderer, px, py);
-                    SDL_RenderPoint(renderer, px, pz);
-                    SDL_RenderPoint(renderer, py, pz);
-                }
+            SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+            if (scale != 0) {
+                float test_scale = 200.0f / (pz + 5);
+                SDL_FRect test = {
+                    px * test_scale + 320,
+                    py * test_scale + 180,
+                    1,
+                    1,
+                };
+                SDL_RenderFillRect(renderer, &test);
             }
-            SDL_RenderPresent(renderer);
+            else {
+                SDL_RenderPoint(renderer, px, py);
+                SDL_RenderPoint(renderer, px, pz);
+                SDL_RenderPoint(renderer, py, pz);
+            }
+        }
+        SDL_RenderPresent(renderer);
     }
 }
 
@@ -170,7 +155,7 @@ std::vector<std::vector<point_3d>> read_file() {
             points_3d[i][j] = point_3d(temp_x, temp_y, temp_z);
         }
     }
-    
+    inputFile.close();
     return points_3d;
 }
 
@@ -213,36 +198,19 @@ int main()
 
     std::vector<std::vector<point_3d>> points = read_file();
 
-    // PRINT CURRENT SET OF POINTS
-    std::cout << points.size() << std::endl;
-    int iter = 0;
-    while (!points.empty()) {
-        std::vector<point_3d> temp_vec = points.back();
-        std::cout << iter << std::endl;
-        iter++;
-        while (!temp_vec.empty()) {
-            std::cout << "x: " << temp_vec.back().p_2d.x
-                << " y: " << temp_vec.back().p_2d.y
-                << " z: " << temp_vec.back().z <<
-                std::endl;
-            temp_vec.pop_back();
-        }
-        points.pop_back();
-    }
-
     bool quit = false;
-    //SDL_Event e;
-    //while (!quit) {
-    //    while (SDL_PollEvent(&e)) {
-    //        if (e.type == SDL_EVENT_QUIT) {
-    //            quit = true;
-    //        }
-    //        /*for (int i = 0; i < points.size(); i++) {
-    //            draw_bezier_surface(points, 0.005, 20, renderer);
-    //        }*/
-    //        draw_bezier_curve(points2d, px_density, scale, renderer);
-    //    }
-    //}
+    SDL_Event e;
+    while (!quit) {
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_EVENT_QUIT) {
+                quit = true;
+            }
+            for (auto it = points.begin(); it != points.end(); it++) {
+                draw_bezier_surface(*it, 0.01, 30, renderer);
+            }
+            //draw_bezier_curve(points2d, px_density, scale, renderer);
+        }
+    }
 
 
     SDL_DestroyRenderer(renderer);
