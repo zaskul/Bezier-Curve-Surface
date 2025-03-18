@@ -4,6 +4,23 @@
 #include <fstream>
 #include <string>
 #include <regex>
+#define _USE_MATH_DEFINES
+#include <math.h>
+
+
+struct point_2d {
+    float x;
+    float y;
+};
+
+struct point_3d {
+    point_2d p_2d;
+    float z;
+
+    point_3d(float x, float y, float z) : p_2d{x, y}, z(z) {};
+
+    point_3d() : p_2d{ 0, 0 }, z(0) {};
+};
 
 float calc_bernstein(float vw, int ij) {
     switch (ij)
@@ -25,19 +42,36 @@ float calc_bernstein(float vw, int ij) {
     }
 }
 
-struct point_2d {
-    float x;
-    float y;
-};
+void rotateX(point_3d* p, float angle) {
+    float rad_angle = angle * M_PI / 180;
+    float sinA = sin(rad_angle);
+    float cosA = cos(rad_angle);
+    float y = p->p_2d.y * cosA - p->z * sinA;
+    float z = p->p_2d.y * sinA + p->z * cosA;
+    p->p_2d.y = y;
+    p->z = z;
+}
 
-struct point_3d {
-    point_2d p_2d;
-    float z;
+void rotateY(point_3d* p, float angle) {
+    float rad_angle = angle * M_PI / 180;
+    float sinA = sin(rad_angle);
+    float cosA = cos(rad_angle);
+    float x = p->p_2d.x * cosA + p->z * sinA;
+    float z = -p->p_2d.x * sinA + p->z * cosA;
+    p->p_2d.x = x;
+    p->z = z;
+}
 
-    point_3d(float x, float y, float z) : p_2d{x, y}, z(z) {};
+void rotateZ(point_3d* p, float angle) {
+    float rad_angle = angle * M_PI / 180;
+    float sinA = sin(rad_angle);
+    float cosA = cos(rad_angle);
+    float x = p->p_2d.x * cosA - p->p_2d.y * sinA;
+    float y = p->p_2d.x * sinA + p->p_2d.y * cosA;
+    p->p_2d.x = x;
+    p->p_2d.y = y;
+}
 
-    point_3d() : p_2d{ 0, 0 }, z(0) {};
-};
 
 void draw_bezier_curve(std::vector<point_2d> xy, float px_density, float scale, SDL_Renderer* renderer) {
     
@@ -70,38 +104,46 @@ void draw_bezier_curve(std::vector<point_2d> xy, float px_density, float scale, 
     SDL_RenderPresent(renderer);
 }
 
-void draw_bezier_surface(std::vector<point_3d> xyz, float px_density, float scale, SDL_Renderer* renderer) {
+void draw_bezier_surface(std::vector<point_3d> xyz, float px_density, float px_size, SDL_Renderer* renderer, float angle, short rotate_by) {
+    if (rotate_by > 7) rotate_by = 7;
+    if (rotate_by < 0) rotate_by = 0;
+
     for (float v = 0; v <= 1; v += px_density) {
         for (float w = 0; w <= 1; w += px_density) {
-            float px = 0;
-            float py = 0;
-            float pz = 0;
-
+            point_3d point = { 0, 0, 0 };
             std::vector<point_3d>::iterator it = xyz.begin();
             for (int i = 0; i < 4; i++) {
                 for (int j = 0; j < 4; j++) {
-                    px += it->p_2d.x * calc_bernstein(v, i) * calc_bernstein(w, j);
-                    py += it->p_2d.y * calc_bernstein(v, i) * calc_bernstein(w, j);
-                    pz += it->z * calc_bernstein(v, i) * calc_bernstein(w, j);
+                    point.p_2d.x += it->p_2d.x * calc_bernstein(v, i) * calc_bernstein(w, j);
+                    point.p_2d.y += it->p_2d.y * calc_bernstein(v, i) * calc_bernstein(w, j);
+                    point.z += it->z * calc_bernstein(v, i) * calc_bernstein(w, j);
                     it++;
                 }
             }
+            // rotate using bitwise operations
+            // order of operations:
+            // (binary number) 0 0 0 -> Z, Y, X
+            // e.g. 6 -> 110 -> rotate by Z axis and Y axis
+            if (rotate_by & 1) {
+                rotateX(&point, angle);
+            }
+            if (rotate_by & 3) {
+                rotateY(&point, angle);
+            }
+            if (rotate_by & 7) {
+                rotateZ(&point, angle);
+            }
+
+            // 3d to 2d projection
             SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-            if (scale != 0) {
-                float test_scale = 200.0f / (pz + 5);
-                SDL_FRect test = {
-                    px * test_scale + 320,
-                    py * test_scale + 180,
-                    1,
-                    1,
-                };
-                SDL_RenderFillRect(renderer, &test);
-            }
-            else {
-                SDL_RenderPoint(renderer, px, py);
-                SDL_RenderPoint(renderer, px, pz);
-                SDL_RenderPoint(renderer, py, pz);
-            }
+            float scale = 300.0f / (point.z + 6);
+            SDL_FRect pixel = {
+                point.p_2d.x * scale + 320,
+                point.p_2d.y * scale + 180,
+                px_size,
+                px_size,
+            };
+            SDL_RenderFillRect(renderer, &pixel);
         }
         SDL_RenderPresent(renderer);
     }
@@ -184,6 +226,7 @@ int main()
         return 1;
     }
 
+    // clear screen
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
     
@@ -200,14 +243,24 @@ int main()
 
     bool quit = false;
     SDL_Event e;
+    float angle = 0.0f;
+
     while (!quit) {
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) {
                 quit = true;
             }
+            angle += 30;
+            if (angle >= 360.0f) { angle = 0; }
+
             for (auto it = points.begin(); it != points.end(); it++) {
-                draw_bezier_surface(*it, 0.01, 30, renderer);
+                draw_bezier_surface(*it, 0.008, 2, renderer, angle, 6);
             }
+
+            // clear screen
+
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_RenderClear(renderer);
             //draw_bezier_curve(points2d, px_density, scale, renderer);
         }
     }
