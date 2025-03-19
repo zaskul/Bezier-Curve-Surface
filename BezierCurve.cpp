@@ -42,8 +42,8 @@ float calc_bernstein(float vw, int ij) {
     }
 }
 
-void rotateX(point_3d* p, float angle) {
-    float rad_angle = angle * M_PI / 180;
+void rotate_x(point_3d* p, float angle) {
+    float rad_angle = angle * M_PI / 180.0f;
     float sinA = sin(rad_angle);
     float cosA = cos(rad_angle);
     float y = p->p_2d.y * cosA - p->z * sinA;
@@ -52,8 +52,8 @@ void rotateX(point_3d* p, float angle) {
     p->z = z;
 }
 
-void rotateY(point_3d* p, float angle) {
-    float rad_angle = angle * M_PI / 180;
+void rotate_y(point_3d* p, float angle) {
+    float rad_angle = angle * M_PI / 180.0f;
     float sinA = sin(rad_angle);
     float cosA = cos(rad_angle);
     float x = p->p_2d.x * cosA + p->z * sinA;
@@ -62,8 +62,8 @@ void rotateY(point_3d* p, float angle) {
     p->z = z;
 }
 
-void rotateZ(point_3d* p, float angle) {
-    float rad_angle = angle * M_PI / 180;
+void rotate_z(point_3d* p, float angle) {
+    float rad_angle = angle * M_PI / 180.0f;
     float sinA = sin(rad_angle);
     float cosA = cos(rad_angle);
     float x = p->p_2d.x * cosA - p->p_2d.y * sinA;
@@ -71,7 +71,6 @@ void rotateZ(point_3d* p, float angle) {
     p->p_2d.x = x;
     p->p_2d.y = y;
 }
-
 
 void draw_bezier_curve(std::vector<point_2d> xy, float px_density, float scale, SDL_Renderer* renderer) {
     
@@ -114,25 +113,25 @@ void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<point_3d> pts, f
         // order of operations:
         // (binary number) 0 0 0 -> Z, Y, X
         // e.g. 6 -> 110 -> rotate by Z axis and Y axis
+        if (rotate_by & 4) {
+            rotate_z(&point, angle);
+        }
+        if (rotate_by & 2) {
+            rotate_y(&point, angle);
+        }
         if (rotate_by & 1) {
-            rotateX(&point, angle);
+            rotate_x(&point, angle);
         }
-        if (rotate_by & 3) {
-            rotateY(&point, angle);
-        }
-        if (rotate_by & 7) {
-            rotateZ(&point, angle);
-        }
-
         // 3d to 2d projection
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         float scale = 300.0f / (point.z + 6);
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         SDL_FRect pixel = {
             point.p_2d.x * scale + 320,
             point.p_2d.y * scale + 180,
             px_size,
             px_size,
         };
+
         SDL_RenderFillRect(renderer, &pixel);
     }
 }
@@ -256,10 +255,10 @@ int main()
     bool quit = false;
     SDL_Event e;
     float angle = 0.0f;
-    float px_density = 0.005;
+    float px_density = 0.001;
     float px_size = 1;
     float scale = 30;
-    float rotate_by = 2;
+    float rotate_by = 1;
 
     while (!quit) {
         while (SDL_PollEvent(&e)) {
@@ -267,8 +266,8 @@ int main()
                 quit = true;
             }
         }
-            angle += 1;
-            if (angle >= 360.0f) { angle = 0; }
+            angle += 2;
+            /*if (angle >= 360.0f) { angle = 0; }*/
 
             // clear screen
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
