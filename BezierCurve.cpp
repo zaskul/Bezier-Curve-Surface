@@ -123,11 +123,11 @@ void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<point_3d> pts, f
             rotate_x(&point, angle);
         }
         // 3d to 2d projection
-        float scale = 300.0f / (point.z + 6);
+        float scale = 300.0f / (point.z + 6.0f);
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         SDL_FRect pixel = {
-            point.p_2d.x * scale + 320,
-            point.p_2d.y * scale + 180,
+            point.p_2d.x * scale + 320.0f,
+            point.p_2d.y * scale + 180.0f,
             px_size,
             px_size,
         };
@@ -247,7 +247,7 @@ int main()
     std::vector<std::vector<point_3d>> points = read_file();
     std::vector<point_3d> processed_points;
     for (auto it = points.begin(); it != points.end(); it++) {
-        std::vector<point_3d> temp_vec = calc_bezier_surfaces(*it, 0.01);
+        std::vector<point_3d> temp_vec = calc_bezier_surfaces(*it, 0.01f);
         processed_points.reserve(processed_points.size() + temp_vec.size());
         processed_points.insert(processed_points.end(), temp_vec.begin(), temp_vec.end());
     }
@@ -256,9 +256,9 @@ int main()
     SDL_Event e;
     float angle = 0.0f;
     float px_density = 0.001;
-    float px_size = 1;
-    float scale = 30;
-    float rotate_by = 1;
+    float px_size = 1.0f;
+    float scale = 30.0f;
+    float rotate_by = 1.0f;
 
     while (!quit) {
         while (SDL_PollEvent(&e)) {
@@ -266,8 +266,8 @@ int main()
                 quit = true;
             }
         }
-            angle += 2;
-            /*if (angle >= 360.0f) { angle = 0; }*/
+            angle += 2.0f;
+            if (angle >= 360.0f) { angle = 0.0f; }
 
             // clear screen
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
