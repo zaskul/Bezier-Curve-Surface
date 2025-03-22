@@ -6,7 +6,7 @@
 #include <regex>
 #define _USE_MATH_DEFINES
 #include <math.h>
-
+#include <malloc.h>
 
 struct point_2d {
     float x;
@@ -103,9 +103,10 @@ void draw_bezier_curve(std::vector<point_2d> xy, float px_density, float scale, 
     SDL_RenderPresent(renderer);
 }
 
-void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<point_3d> pts, float px_size, float angle, short rotate_by) {
+void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<point_3d> pts, float x_pos, float y_pos, float obj_scale, float angle, short rotate_by) {
     if (rotate_by > 7) rotate_by = 7;
     if (rotate_by < 0) rotate_by = 0;
+    SDL_FRect pixel = {};
     for (auto it = pts.begin(); it != pts.end(); it++) {
         point_3d point = *it;
 
@@ -123,16 +124,9 @@ void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<point_3d> pts, f
             rotate_x(&point, angle);
         }
         // 3d to 2d projection
-        float scale = 300.0f / (point.z + 6.0f);
+        float scale = obj_scale / (point.z + 6.0f);
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        SDL_FRect pixel = {
-            point.p_2d.x * scale + 320.0f,
-            point.p_2d.y * scale + 180.0f,
-            px_size,
-            px_size,
-        };
-
-        SDL_RenderFillRect(renderer, &pixel);
+        SDL_RenderPoint(renderer, point.p_2d.x * scale + x_pos, point.p_2d.y * scale + y_pos);
     }
 }
 
@@ -199,7 +193,7 @@ std::vector<std::vector<point_3d>> read_file() {
             temp_string_points.pop_back();
             float temp_x = std::stof(temp_string_points.back());
             temp_string_points.pop_back();
-
+            
             points_3d[i][j] = point_3d(temp_x, temp_y, temp_z);
         }
     }
@@ -255,17 +249,40 @@ int main()
     bool quit = false;
     SDL_Event e;
     float angle = 0.0f;
-    float px_density = 0.001;
-    float px_size = 1.0f;
-    float scale = 30.0f;
+    float px_density = 0.1;
+    float obj_scale = 300.0f;
     float rotate_by = 1.0f;
+    float x_pos = (float)(width / 2);
+    float y_pos = (float)(height / 2);
+    float movement_step = 10.0f;
+
+    std::cout << processed_points.size() << std::endl;
 
     while (!quit) {
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) {
                 quit = true;
             }
+            if (e.type == SDL_EVENT_KEY_DOWN) {
+                if (e.key.key == SDLK_A) {
+                    std::cout << "A KEY PRESSED" << std::endl;
+                    x_pos -= movement_step;
+                }
+                if (e.key.key == SDLK_D) {
+                    std::cout << "D KEY PRESSED" << std::endl;
+                    x_pos += movement_step;
+                }
+                if (e.key.key == SDLK_W) {
+                    std::cout << "W KEY PRESSED" << std::endl;
+                    y_pos += movement_step;
+                }
+                if (e.key.key == SDLK_S) {
+                    std::cout << "S KEY PRESSED" << std::endl;
+                    y_pos -= movement_step;
+                }
+            }
         }
+
             angle += 2.0f;
             if (angle >= 360.0f) { angle = 0.0f; }
 
@@ -273,7 +290,7 @@ int main()
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
             SDL_RenderClear(renderer);
 
-            render_bezier_surfaces(renderer, processed_points, px_size, angle, rotate_by);
+            render_bezier_surfaces(renderer, processed_points, x_pos, y_pos, obj_scale, angle, rotate_by);
 
             SDL_RenderPresent(renderer);
 
@@ -281,10 +298,8 @@ int main()
             //draw_bezier_curve(points2d, px_density, scale, renderer);
     }
     
-
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
-
     return 0;
 }
