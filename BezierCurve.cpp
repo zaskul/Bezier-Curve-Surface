@@ -1,6 +1,7 @@
 #include <iostream>
 #include <SDL3/SDL.h>
 #include <vector>
+#include <array>
 #include <fstream>
 #include <string>
 #include <regex>
@@ -8,18 +9,28 @@
 #include <math.h>
 #include <malloc.h>
 
-struct point_2d {
+struct Point_2D {
     float x;
     float y;
+    Point_2D(float x, float y) : x(x), y(y) {};
+    Point_2D() : x(0.0f), y(0.0f) {};
 };
 
-struct point_3d {
-    point_2d p_2d;
+struct Point_3D {
+    Point_2D p_2d;
     float z;
 
-    point_3d(float x, float y, float z) : p_2d{x, y}, z(z) {};
+    Point_3D(float x, float y, float z) : p_2d{x, y}, z(z) {};
 
-    point_3d() : p_2d{ 0, 0 }, z(0) {};
+    Point_3D() : p_2d{ 0, 0 }, z(0) {};
+};
+
+struct Render_Color {
+    int r;
+    int g;
+    int b;
+    int a;
+    Render_Color(int r, int g, int b, int a) : r(r), g(g), b(b), a(a) {};
 };
 
 float calc_bernstein(float vw, int ij) {
@@ -42,7 +53,7 @@ float calc_bernstein(float vw, int ij) {
     }
 }
 
-void rotate_x(point_3d* p, float angle) {
+void rotate_x(Point_3D* p, float angle) {
     float rad_angle = angle * M_PI / 180.0f;
     float sinA = sin(rad_angle);
     float cosA = cos(rad_angle);
@@ -52,7 +63,7 @@ void rotate_x(point_3d* p, float angle) {
     p->z = z;
 }
 
-void rotate_y(point_3d* p, float angle) {
+void rotate_y(Point_3D* p, float angle) {
     float rad_angle = angle * M_PI / 180.0f;
     float sinA = sin(rad_angle);
     float cosA = cos(rad_angle);
@@ -62,7 +73,7 @@ void rotate_y(point_3d* p, float angle) {
     p->z = z;
 }
 
-void rotate_z(point_3d* p, float angle) {
+void rotate_z(Point_3D* p, float angle) {
     float rad_angle = angle * M_PI / 180.0f;
     float sinA = sin(rad_angle);
     float cosA = cos(rad_angle);
@@ -72,43 +83,60 @@ void rotate_z(point_3d* p, float angle) {
     p->p_2d.y = y;
 }
 
-void draw_bezier_curve(std::vector<point_2d> xy, float px_density, float scale, SDL_Renderer* renderer) {
-    
-    for (float t = 0; t <= 1; t += px_density) {
-        float px = pow(1 - t, 3) * pow(t, 0) * xy[0].x +
-            3 * pow(1 - t, 2) * pow(t, 1) * xy[1].x +
-            3 * pow(1 - t, 1) * pow(t, 2) * xy[2].x +
-            pow(1 - t, 0) * pow(t, 3) * xy[3].x;
-        float py = pow(1 - t, 3) * pow(t, 0) * xy[0].y +
-            3 * pow(1 - t, 2) * pow(t, 1) * xy[1].y +
-            3 * pow(1 - t, 1) * pow(t, 2) * xy[2].y +
-            pow(1 - t, 0) * pow(t, 3) * xy[3].y;
-
-        printf("x: %f, y: %f \n", px, py);
-
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-        if (scale != 0) {
-            SDL_FRect scaled_pixel = {
-                px * scale,
-                py * scale,
-                scale,
-                scale
-            };
-            SDL_RenderFillRect(renderer, &scaled_pixel);
+std::vector<Point_2D> calc_bezier_curve(std::vector<std::array<Point_2D, 4>> xy, float px_density) {
+    std::vector<Point_2D> res_vector;
+    Point_2D point = Point_2D();
+    for (auto vec_it = xy.begin(); vec_it != xy.end(); vec_it++) {
+        // read individual curve
+        float x[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        float y[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        int i = 0;
+        std::array<Point_2D, 4>::iterator check_dist = vec_it->begin();
+        if (std::distance(check_dist, vec_it->end()) < 4) return res_vector;
+        for (auto it = vec_it->begin(); it != vec_it->end(); it++) {
+            x[i] = it->x;
+            y[i] = it->y;
+            i++;  
         }
-        else {
-            SDL_RenderPoint(renderer, px, py);
+        // calculate the curve
+        for (float t = 0; t <= 1.0f; t += px_density) {
+            point.x = calc_bernstein(t, 0) * x[0] +
+                calc_bernstein(t, 1) * x[1] +
+                calc_bernstein(t, 2) * x[2] +
+                calc_bernstein(t, 3) * x[3];
+            point.y = calc_bernstein(t, 0) * y[0] +
+                calc_bernstein(t, 1) * y[1] +
+                calc_bernstein(t, 2) * y[2] +
+                calc_bernstein(t, 3) * y[3];
+            std::cout << "x: " <<point.x << "y: " << point.y << std::endl;
+            res_vector.push_back(point);
         }
     }
-    SDL_RenderPresent(renderer);
+    
+    return res_vector;
 }
 
-void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<point_3d> pts, float x_pos, float y_pos, float obj_scale, float angle, short rotate_by) {
+void render_bezier_curve(SDL_Renderer* renderer, std::vector<Point_2D> pts, float x_pos, float y_pos, float scale) {
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    
+    for (auto it = pts.begin(); it != pts.end(); it++) {
+            it->x += x_pos / 1.5f / scale;
+            it->y += y_pos / 1.5f / scale;
+            SDL_SetRenderScale(renderer, scale, scale);
+            SDL_RenderPoint(renderer, it->x, it->y);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    }
+    // draw x and y axis
+    SDL_RenderLine(renderer, x_pos, 0, x_pos, y_pos * 2);
+    SDL_RenderLine(renderer, 0, y_pos, x_pos * 2, y_pos);
+}
+
+void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<Point_3D> pts, float x_pos, float y_pos, float obj_scale, float angle, short rotate_by, Render_Color color) {
     if (rotate_by > 7) rotate_by = 7;
     if (rotate_by < 0) rotate_by = 0;
-    SDL_FRect pixel = {};
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     for (auto it = pts.begin(); it != pts.end(); it++) {
-        point_3d point = *it;
+        Point_3D point = *it;
 
         // rotate using bitwise operations
         // order of operations:
@@ -124,18 +152,17 @@ void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<point_3d> pts, f
             rotate_x(&point, angle);
         }
         // 3d to 2d projection
-        float scale = obj_scale / (point.z + 6.0f);
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+        float scale = obj_scale / (point.z + 6.0f) * 100.0f;
         SDL_RenderPoint(renderer, point.p_2d.x * scale + x_pos, point.p_2d.y * scale + y_pos);
     }
 }
 
-std::vector<point_3d> calc_bezier_surfaces(std::vector<point_3d> xyz, float px_density) {
-    std::vector<point_3d> processed_points;
+std::vector<Point_3D> calc_bezier_surfaces(std::vector<Point_3D> xyz, float px_density) {
+    std::vector<Point_3D> processed_points;
     for (float v = 0; v <= 1; v += px_density) {
         for (float w = 0; w <= 1; w += px_density) {
-            point_3d point = { 0, 0, 0 };
-            std::vector<point_3d>::iterator it = xyz.begin();
+            Point_3D point = { 0, 0, 0 };
+            std::vector<Point_3D>::iterator it = xyz.begin();
             for (int i = 0; i < 4; i++) {
                 for (int j = 0; j < 4; j++) {
                     point.p_2d.x += it->p_2d.x * calc_bernstein(v, i) * calc_bernstein(w, j);
@@ -168,7 +195,7 @@ int calc_matrix_size(std::vector<std::string> input) {
     return result;
 }
 
-std::vector<std::vector<point_3d>> read_file() {
+std::vector<std::vector<Point_3D>> read_file() {
     std::ifstream inputFile("Objects/teapotCGA.txt");
     if (!inputFile.is_open()) {
         std::cerr << "File could not be opened" << std::endl;
@@ -178,7 +205,7 @@ std::vector<std::vector<point_3d>> read_file() {
     std::getline(inputFile, line);
     int num_of_patches = stoi(line);
     
-    std::vector<std::vector<point_3d>> points_3d(num_of_patches);
+    std::vector<std::vector<Point_3D>> points_3d(num_of_patches);
 
     for (int i = 0; i < points_3d.size(); i++) {
         std::getline(inputFile, line);
@@ -194,7 +221,7 @@ std::vector<std::vector<point_3d>> read_file() {
             float temp_x = std::stof(temp_string_points.back());
             temp_string_points.pop_back();
             
-            points_3d[i][j] = point_3d(temp_x, temp_y, temp_z);
+            points_3d[i][j] = Point_3D(temp_x, temp_y, temp_z);
         }
     }
     inputFile.close();
@@ -204,9 +231,9 @@ std::vector<std::vector<point_3d>> read_file() {
 
 int main()
 {
-    int width = 640;
-    int height = 360;
-    
+    int width = 1000;
+    int height = 1000;
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
         return 1;
@@ -226,37 +253,46 @@ int main()
         return 1;
     }
 
-    // clear screen
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
-    
+    std::vector<std::array<Point_2D, 4>> points2d;
 
+    //points2d.push_back({{{ 7.0, 4.0 }, { 2.0, 3.0 }, { 3.0, 2.0 }, { 4.0, 1.0 }}});
 
-    std::vector<point_2d> points2d;
-    points2d.push_back({ 1.0, 3.0 });
-    points2d.push_back({ 2.0, 2.0 });
+    points2d.push_back({{{ 174.f, 59.f }, { 146.f, 10.f }, { 131.f, 76.f }, { 131.f, 86.f } } });
+    points2d.push_back({ { { 131.f, 86.f }, { 131.f, 96.f }, { 124.f, 195.f }, { 119.f, 209.f } } });
+    points2d.push_back({ { { 119.f, 209.f }, { 110.f, 227.f }, { 84.f, 228.f }, { 83.f, 217.f } } });
+    points2d.push_back({ { { 83.f, 217.f }, { 79.f, 180.f}, { 136.f, 215.f }, { 142.f, 223.f } } });
+    points2d.push_back({ { { 142.f, 223.f }, { 154.f, 239.f }, { 195.f, 204.f}, { 193.f, 197.f } } });
+    float x_offset = 30.f;
+    float y_offset = 60.f;
+    points2d.push_back({ {{(88.f + x_offset) / 2.f, (193.f + y_offset) / 2.f}, {(294.f + x_offset) / 2.f, (113.f + y_offset) / 2.f}, {(189.f - x_offset) / 2.f, (282.f + y_offset) / 2.f}, {(394.f - x_offset) / 2.f, (188.f + y_offset) / 2.f}} });
+
+    /*points2d.push_back({ 2.0, 3.0 });
     points2d.push_back({ 3.0, 2.0 });
     points2d.push_back({ 4.0, 1.0 });
-
-    std::vector<std::vector<point_3d>> points = read_file();
-    std::vector<point_3d> processed_points;
+    */
+    std::vector<std::vector<Point_3D>> points = read_file();
+    std::vector<Point_3D> processed_points_3d;
     for (auto it = points.begin(); it != points.end(); it++) {
-        std::vector<point_3d> temp_vec = calc_bezier_surfaces(*it, 0.01f);
-        processed_points.reserve(processed_points.size() + temp_vec.size());
-        processed_points.insert(processed_points.end(), temp_vec.begin(), temp_vec.end());
+        std::vector<Point_3D> temp_vec = calc_bezier_surfaces(*it, 0.01f);
+        processed_points_3d.reserve(processed_points_3d.size() + temp_vec.size());
+        processed_points_3d.insert(processed_points_3d.end(), temp_vec.begin(), temp_vec.end());
     }
+
+    std::vector<Point_2D> processed_points_2d = calc_bezier_curve(points2d, 0.01f);
+
 
     bool quit = false;
     SDL_Event e;
     float angle = 0.0f;
-    float px_density = 0.1;
-    float obj_scale = 300.0f;
+    float px_density = 0.001f;
+    float obj_scale = 1.0f;
     float rotate_by = 1.0f;
     float x_pos = (float)(width / 2);
     float y_pos = (float)(height / 2);
     float movement_step = 10.0f;
-
-    std::cout << processed_points.size() << std::endl;
+    Render_Color color = { 255, 0, 0, 255 };
+    Render_Color bg_color = { 0, 0, 0, 255 };
+    std::cout << processed_points_3d.size() << std::endl;
 
     while (!quit) {
         while (SDL_PollEvent(&e)) {
@@ -267,6 +303,10 @@ int main()
                 if (e.key.key == SDLK_A) {
                     std::cout << "A KEY PRESSED" << std::endl;
                     x_pos -= movement_step;
+                    color.r -= 5;
+                    if (color.r == 0) color.r = 255;
+                    color.b += 5;
+                    if (color.b == 255) color.b = 0;
                 }
                 if (e.key.key == SDLK_D) {
                     std::cout << "D KEY PRESSED" << std::endl;
@@ -287,15 +327,15 @@ int main()
             if (angle >= 360.0f) { angle = 0.0f; }
 
             // clear screen
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_SetRenderDrawColor(renderer, bg_color.r, bg_color.b, bg_color.g, bg_color.a);
             SDL_RenderClear(renderer);
 
-            render_bezier_surfaces(renderer, processed_points, x_pos, y_pos, obj_scale, angle, rotate_by);
+            render_bezier_surfaces(renderer, processed_points_3d, x_pos, y_pos, obj_scale, angle, rotate_by, color);
+            //render_bezier_curve(renderer, processed_points_2d, x_pos, y_pos, obj_scale);
 
             SDL_RenderPresent(renderer);
 
             SDL_Delay(10);
-            //draw_bezier_curve(points2d, px_density, scale, renderer);
     }
     
     SDL_DestroyRenderer(renderer);
