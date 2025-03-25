@@ -62,53 +62,6 @@ float calc_bernstein(float vw, int ij) {
         break;
     }
 }
-
-void rotate_x(Point_3D* p, float angle) {
-    float rad_angle = angle * M_PI / 180.0f;
-    float sinA = sin(rad_angle);
-    float cosA = cos(rad_angle);
-    float y = p->p_2d.y * cosA - p->z * sinA;
-    float z = p->p_2d.y * sinA + p->z * cosA;
-    p->p_2d.y = y;
-    p->z = z;
-}
-
-void rotate_y(Point_3D* p, float angle) {
-    float rad_angle = angle * M_PI / 180.0f;
-    float sinA = sin(rad_angle);
-    float cosA = cos(rad_angle);
-    float x = p->p_2d.x * cosA + p->z * sinA;
-    float z = -p->p_2d.x * sinA + p->z * cosA;
-    p->p_2d.x = x;
-    p->z = z;
-}
-
-void rotate_z(Point_3D* p, float angle) {
-    float rad_angle = angle * M_PI / 180.0f;
-    float sinA = sin(rad_angle);
-    float cosA = cos(rad_angle);
-    float x = p->p_2d.x * cosA - p->p_2d.y * sinA;
-    float y = p->p_2d.x * sinA + p->p_2d.y * cosA;
-    p->p_2d.x = x;
-    p->p_2d.y = y;
-}
-
-
-void render_bezier_curve(SDL_Renderer* renderer, std::vector<Point_2D> pts, float x_pos, float y_pos, float scale) {
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-    
-    for (auto it = pts.begin(); it != pts.end(); it++) {
-            it->x += x_pos / 1.5f / scale;
-            it->y += y_pos / 1.5f / scale;
-            SDL_SetRenderScale(renderer, scale, scale);
-            SDL_RenderPoint(renderer, it->x, it->y);
-            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
-    }
-    // draw x and y axis
-    SDL_RenderLine(renderer, x_pos, 0, x_pos, y_pos * 2);
-    SDL_RenderLine(renderer, 0, y_pos, x_pos * 2, y_pos);
-}
-
 std::vector<Point_2D> calc_bezier_curve(std::vector<std::array<Point_2D, 4>> xy, float px_density) {
     std::vector<Point_2D> res_vector;
     Point_2D point = Point_2D();
@@ -141,6 +94,21 @@ std::vector<Point_2D> calc_bezier_curve(std::vector<std::array<Point_2D, 4>> xy,
     return res_vector;
 }
 
+void render_bezier_curve(SDL_Renderer* renderer, std::vector<Point_2D> pts, float x_pos, float y_pos, float scale) {
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    
+    for (auto it = pts.begin(); it != pts.end(); it++) {
+            it->x += x_pos / 1.5f / scale;
+            it->y += y_pos / 1.5f / scale;
+            SDL_SetRenderScale(renderer, scale, scale);
+            SDL_RenderPoint(renderer, it->x, it->y);
+            SDL_SetRenderScale(renderer, 1.0f, 1.0f);
+    }
+    // draw x and y axis
+    SDL_RenderLine(renderer, x_pos, 0, x_pos, y_pos * 2);
+    SDL_RenderLine(renderer, 0, y_pos, x_pos * 2, y_pos);
+}
+
 std::vector<Point_3D> calc_bezier_surfaces(std::vector<Point_3D> xyz, float px_density) {
     std::vector<Point_3D> processed_points;
     for (float v = 0; v <= 1; v += px_density) {
@@ -161,7 +129,7 @@ std::vector<Point_3D> calc_bezier_surfaces(std::vector<Point_3D> xyz, float px_d
     return processed_points;
 }
 
-void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<Point_3D>& pts, float x_pos, float y_pos, float obj_scale, Render_Color color) {
+void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<Point_3D>& pts, float x_pos, float y_pos, float z_offset, float obj_scale, Render_Color color) {
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     std::vector<SDL_FPoint> sdl_pts;
     sdl_pts.reserve(pts.size());
@@ -169,7 +137,7 @@ void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<Point_3D>& pts, 
         Point_3D point = *it;
 
         // 3d to 2d projection
-        float scale = obj_scale / (point.z + 6.0f) * 100.0f;
+        float scale = obj_scale / (point.z + z_offset) * 100.0f;
         sdl_pts.push_back({ static_cast<float>(point.p_2d.x * scale + x_pos),  static_cast<float>(point.p_2d.y * scale + y_pos )});
     }
     SDL_RenderPoints(renderer, sdl_pts.data(), sdl_pts.size());
@@ -180,15 +148,16 @@ Matrix4x4 multiply_matrices(const Matrix4x4& a, const Matrix4x4& b) {
     for (int i = 0; i < 4; i++) {
         for (int j = 0; j < 4; j++) {
             result.m[i][j] = 0;
-            for (int k = 0; k < 4; k++) {
-                result.m[i][j] += a.m[i][k] * b.m[k][j];
-            }
+            result.m[i][j] += a.m[i][0] * b.m[0][j];
+            result.m[i][j] += a.m[i][1] * b.m[1][j];
+            result.m[i][j] += a.m[i][2] * b.m[2][j];
+            result.m[i][j] += a.m[i][3] * b.m[3][j];
         }
     }
     return result;
 }
 
-void multiply_matrix_vector(std::vector<Point_3D>& i, std::vector<Point_3D>& o, Matrix4x4 m) {
+void multiply_matrix_vector(std::vector<Point_3D>& i, std::vector<Point_3D>& o, Matrix4x4 &m) {
     std::vector<Point_3D>::iterator output_iter = o.begin();
     for (auto it = i.begin(); it != i.end(); it++) {
         output_iter->p_2d.x = it->p_2d.x * m.m[0][0] + it->p_2d.y * m.m[1][0] + it->z * m.m[2][0] + m.m[3][0];
@@ -222,8 +191,9 @@ int calc_matrix_size(std::vector<std::string> input) {
     return result;
 }
 
-std::vector<std::vector<Point_3D>> read_file() {
-    std::ifstream inputFile("Objects/teapotCGA.txt");
+std::vector<std::vector<Point_3D>> read_file(std::string file_name) {
+    std::string file_path = "Objects/" + file_name;
+    std::ifstream inputFile(file_path);
     if (!inputFile.is_open()) {
         std::cerr << "File could not be opened" << std::endl;
     }
@@ -268,7 +238,7 @@ void update_rotation_matrix_angle(Matrix4x4* m, Rotation_State* state, short rot
         std::cout << "Z ROTATED" << std::endl;
         std::cout << "z state: " << state->angleZ << std::endl;
     }
-    // rotate Y
+    //rotate Y
     if (rotate_by & 2) {
         float thetaY = state->angleY * M_PI / 180.0f;
         m->m[0][0] = cosf(thetaY);
@@ -292,6 +262,29 @@ void update_rotation_matrix_angle(Matrix4x4* m, Rotation_State* state, short rot
         std::cout << "X ROTATED" << std::endl;
         std::cout << "x state: " << state->angleX << std::endl;
     }
+}
+
+void draw_axes(SDL_Renderer* renderer, float zoom, float offsetX, float offsetY) {
+    Point_3D axisStart = { 0-offsetX, 0-offsetY, 0 };
+    Point_3D axisEnd = { 0.1f, 0.1f, 1.0f };
+
+    SDL_Point start = {
+        static_cast<int>(axisStart.p_2d.x * zoom + offsetX),
+        static_cast<int>(axisStart.p_2d.y * zoom + offsetY)
+    };
+    SDL_Point end = {
+        static_cast<int>(axisEnd.p_2d.x * zoom + offsetX),
+        static_cast<int>(axisEnd.p_2d.y * zoom + offsetY)
+    };
+
+    // Draw the line
+    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); // Blue for Z
+    SDL_RenderLine(renderer, start.x, start.y, end.x, end.y);
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Green for Y
+    SDL_RenderLine(renderer, offsetX, 0, offsetX, offsetY * 2);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255); // Yellow for X
+    SDL_RenderLine(renderer, 0, offsetY, offsetX * 2, offsetY);
+
 }
 
 int main()
@@ -345,18 +338,19 @@ int main()
     // init variables
     bool quit = false;
     SDL_Event e;
-    float rotation_angle = 1.0f;
-    float px_density = 0.01f;
+    float rotation_angle = 4.0f;
+    float px_density = 0.05f;
     float obj_scale = 3.0f;
     float x_pos = (float)(width / 2);
     float y_pos = (float)(height / 2);
+    float z_offset = 6.0f;
     float movement_step = 10.0f;
     bool matrix_updated = false;
     Render_Color color = { 255, 0, 0, 255 };
     Render_Color bg_color = { 0, 0, 0, 255 };
     
     // read points and calculate them
-    std::vector<std::vector<Point_3D>> points = read_file();
+    std::vector<std::vector<Point_3D>> points = read_file("teapotCGA.txt");
     std::vector<Point_3D> processed_points_3d;
     for (auto it = points.begin(); it != points.end(); it++) {
         std::vector<Point_3D> temp_vec = calc_bezier_surfaces(*it, px_density);
@@ -471,8 +465,8 @@ int main()
                     if (state.angleZ > 360.0f) state.angleZ = 0.0f;
                     if (state.angleZ < 0.0f) state.angleZ = 360.0f;
 
-                    rot_mat_zy = multiply_matrices(rot_mat_z, rot_mat_y);
-                    rot_mat = multiply_matrices(rot_mat_zy, rot_mat_x);
+                    rot_mat_zy = multiply_matrices(rot_mat_y, rot_mat_x);
+                    rot_mat = multiply_matrices(rot_mat_z, rot_mat_zy);
                     multiply_matrix_vector(processed_points_3d, rotatedPoints, rot_mat);
                     matrix_updated = false;
                 }
@@ -483,13 +477,13 @@ int main()
             SDL_SetRenderDrawColor(renderer, bg_color.r, bg_color.b, bg_color.g, bg_color.a);
             SDL_RenderClear(renderer);
 
-            render_bezier_surfaces(renderer, rotatedPoints, x_pos, y_pos, obj_scale, color);
-            //processed_points_3d = rotatedPoints;
+            // render points
+            render_bezier_surfaces(renderer, rotatedPoints, x_pos, y_pos, z_offset, obj_scale, color);
             //render_bezier_curve(renderer, processed_points_2d, x_pos, y_pos, obj_scale);
-
+            draw_axes(renderer, 5000, (float)width / 2, (float)height /2);
             SDL_RenderPresent(renderer);
 
-            SDL_Delay(10);
+            SDL_Delay(16);
     }
     
     SDL_DestroyRenderer(renderer);
