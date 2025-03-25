@@ -33,6 +33,16 @@ struct Render_Color {
     Render_Color(int r, int g, int b, int a) : r(r), g(g), b(b), a(a) {};
 };
 
+struct Matrix4x4 {
+    float m[4][4] = { 0 };
+};
+
+struct Rotation_State {
+    float angleX = 180.0f;
+    float angleY = 0.0f;
+    float angleZ = 90.0f;
+};
+
 float calc_bernstein(float vw, int ij) {
     switch (ij)
     {
@@ -83,38 +93,6 @@ void rotate_z(Point_3D* p, float angle) {
     p->p_2d.y = y;
 }
 
-std::vector<Point_2D> calc_bezier_curve(std::vector<std::array<Point_2D, 4>> xy, float px_density) {
-    std::vector<Point_2D> res_vector;
-    Point_2D point = Point_2D();
-    for (auto vec_it = xy.begin(); vec_it != xy.end(); vec_it++) {
-        // read individual curve
-        float x[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-        float y[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-        int i = 0;
-        std::array<Point_2D, 4>::iterator check_dist = vec_it->begin();
-        if (std::distance(check_dist, vec_it->end()) < 4) return res_vector;
-        for (auto it = vec_it->begin(); it != vec_it->end(); it++) {
-            x[i] = it->x;
-            y[i] = it->y;
-            i++;  
-        }
-        // calculate the curve
-        for (float t = 0; t <= 1.0f; t += px_density) {
-            point.x = calc_bernstein(t, 0) * x[0] +
-                calc_bernstein(t, 1) * x[1] +
-                calc_bernstein(t, 2) * x[2] +
-                calc_bernstein(t, 3) * x[3];
-            point.y = calc_bernstein(t, 0) * y[0] +
-                calc_bernstein(t, 1) * y[1] +
-                calc_bernstein(t, 2) * y[2] +
-                calc_bernstein(t, 3) * y[3];
-            std::cout << "x: " <<point.x << "y: " << point.y << std::endl;
-            res_vector.push_back(point);
-        }
-    }
-    
-    return res_vector;
-}
 
 void render_bezier_curve(SDL_Renderer* renderer, std::vector<Point_2D> pts, float x_pos, float y_pos, float scale) {
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
@@ -131,31 +109,36 @@ void render_bezier_curve(SDL_Renderer* renderer, std::vector<Point_2D> pts, floa
     SDL_RenderLine(renderer, 0, y_pos, x_pos * 2, y_pos);
 }
 
-void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<Point_3D>& pts, float x_pos, float y_pos, float obj_scale, float angle, short rotate_by, Render_Color color) {
-    if (rotate_by > 7) rotate_by = 7;
-    if (rotate_by < 0) rotate_by = 0;
-    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-
-    for (auto it = pts.begin(); it != pts.end(); it++) {
-        Point_3D point = *it;
-
-        // rotate using bitwise operations
-        // order of operations:
-        // (binary number) 0 0 0 -> Z, Y, X
-        // e.g. 6 -> 110 -> rotate by Z axis and Y axis
-        if (rotate_by & 4) {
-            rotate_z(&point, angle);
+std::vector<Point_2D> calc_bezier_curve(std::vector<std::array<Point_2D, 4>> xy, float px_density) {
+    std::vector<Point_2D> res_vector;
+    Point_2D point = Point_2D();
+    for (auto vec_it = xy.begin(); vec_it != xy.end(); vec_it++) {
+        // read individual curve
+        float x[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        float y[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+        int i = 0;
+        std::array<Point_2D, 4>::iterator check_dist = vec_it->begin();
+        if (std::distance(check_dist, vec_it->end()) < 4) return res_vector;
+        for (auto it = vec_it->begin(); it != vec_it->end(); it++) {
+            x[i] = it->x;
+            y[i] = it->y;
+            i++;
         }
-        if (rotate_by & 2) {
-            rotate_y(&point, angle);
+        // calculate the curve
+        for (float t = 0; t <= 1.0f; t += px_density) {
+            point.x = calc_bernstein(t, 0) * x[0] +
+                calc_bernstein(t, 1) * x[1] +
+                calc_bernstein(t, 2) * x[2] +
+                calc_bernstein(t, 3) * x[3];
+            point.y = calc_bernstein(t, 0) * y[0] +
+                calc_bernstein(t, 1) * y[1] +
+                calc_bernstein(t, 2) * y[2] +
+                calc_bernstein(t, 3) * y[3];
+            std::cout << "x: " << point.x << "y: " << point.y << std::endl;
+            res_vector.push_back(point);
         }
-        if (rotate_by & 1) {
-            rotate_x(&point, angle);
-        }
-        // 3d to 2d projection
-        float scale = obj_scale / (point.z + 6.0f) * 100.0f;
-        SDL_RenderPoint(renderer, point.p_2d.x * scale + x_pos, point.p_2d.y * scale + y_pos);
     }
+    return res_vector;
 }
 
 std::vector<Point_3D> calc_bezier_surfaces(std::vector<Point_3D> xyz, float px_density) {
@@ -176,6 +159,49 @@ std::vector<Point_3D> calc_bezier_surfaces(std::vector<Point_3D> xyz, float px_d
         }
     }
     return processed_points;
+}
+
+void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<Point_3D>& pts, float x_pos, float y_pos, float obj_scale, Render_Color color) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    std::vector<SDL_FPoint> sdl_pts;
+    sdl_pts.reserve(pts.size());
+    for (auto it = pts.begin(); it != pts.end(); it++) {
+        Point_3D point = *it;
+
+        // 3d to 2d projection
+        float scale = obj_scale / (point.z + 6.0f) * 100.0f;
+        sdl_pts.push_back({ static_cast<float>(point.p_2d.x * scale + x_pos),  static_cast<float>(point.p_2d.y * scale + y_pos )});
+    }
+    SDL_RenderPoints(renderer, sdl_pts.data(), sdl_pts.size());
+}
+
+Matrix4x4 multiply_matrices(const Matrix4x4& a, const Matrix4x4& b) {
+    Matrix4x4 result;
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            result.m[i][j] = 0;
+            for (int k = 0; k < 4; k++) {
+                result.m[i][j] += a.m[i][k] * b.m[k][j];
+            }
+        }
+    }
+    return result;
+}
+
+void multiply_matrix_vector(std::vector<Point_3D>& i, std::vector<Point_3D>& o, Matrix4x4 m) {
+    std::vector<Point_3D>::iterator output_iter = o.begin();
+    for (auto it = i.begin(); it != i.end(); it++) {
+        output_iter->p_2d.x = it->p_2d.x * m.m[0][0] + it->p_2d.y * m.m[1][0] + it->z * m.m[2][0] + m.m[3][0];
+        output_iter->p_2d.y = it->p_2d.x * m.m[0][1] + it->p_2d.y * m.m[1][1] + it->z * m.m[2][1] + m.m[3][1];
+        output_iter->z = it->p_2d.x * m.m[0][2] + it->p_2d.y * m.m[1][2] + it->z * m.m[2][2] + m.m[3][2];
+        float w = it->p_2d.x * m.m[0][3] + it->p_2d.y * m.m[1][3] + it->z * m.m[2][3] + m.m[3][3];
+        if (w != 0.0f) {
+            output_iter->p_2d.x / w;
+            output_iter->p_2d.y / w;
+            output_iter->z / w;
+        }
+        output_iter++;
+    }
 }
 
 std::vector<std::string> split_string(std::string str, std::string pattern) {
@@ -229,9 +255,48 @@ std::vector<std::vector<Point_3D>> read_file() {
     return points_3d;
 }
 
+void update_rotation_matrix_angle(Matrix4x4* m, Rotation_State* state, short rotate_by) {
+    // rotate Z
+    if (rotate_by & 4) {
+        float thetaZ = state->angleZ * M_PI / 180.0f;
+        m->m[0][0] = cosf(thetaZ);
+        m->m[0][1] = sinf(thetaZ);
+        m->m[1][0] = -sinf(thetaZ);
+        m->m[2][0] = cosf(thetaZ);
+        m->m[2][2] = 1;
+        m->m[3][3] = 1;
+        std::cout << "Z ROTATED" << std::endl;
+        std::cout << "z state: " << state->angleZ << std::endl;
+    }
+    // rotate Y
+    if (rotate_by & 2) {
+        float thetaY = state->angleY * M_PI / 180.0f;
+        m->m[0][0] = cosf(thetaY);
+        m->m[0][2] = -sinf(thetaY);
+        m->m[1][1] = 1;
+        m->m[2][0] = sinf(thetaY);
+        m->m[2][2] = cosf(thetaY);
+        m->m[3][3] = 1;
+        std::cout << "Y ROTATED" << std::endl;
+        std::cout << "y state: " << state->angleY << std::endl;
+    }
+    // rotate X
+    if (rotate_by & 1) {
+        float thetaX = state->angleX * M_PI / 180.0f;
+        m->m[0][0] = 1;
+        m->m[1][1] = cosf(thetaX);
+        m->m[1][2] = sinf(thetaX);
+        m->m[2][1] = -sinf(thetaX);
+        m->m[2][2] = cosf(thetaX);
+        m->m[3][3] = 1;
+        std::cout << "X ROTATED" << std::endl;
+        std::cout << "x state: " << state->angleX << std::endl;
+    }
+}
 
 int main()
 {
+    // init window and renderer
     int width = 1000;
     int height = 1000;
 
@@ -256,8 +321,6 @@ int main()
 
     std::vector<std::array<Point_2D, 4>> points2d;
 
-    //points2d.push_back({{{ 7.0, 4.0 }, { 2.0, 3.0 }, { 3.0, 2.0 }, { 4.0, 1.0 }}});
-
     points2d.push_back({{{ 174.f, 59.f }, { 146.f, 10.f }, { 131.f, 76.f }, { 131.f, 86.f } } });
     points2d.push_back({ { { 131.f, 86.f }, { 131.f, 96.f }, { 124.f, 195.f }, { 119.f, 209.f } } });
     points2d.push_back({ { { 119.f, 209.f }, { 110.f, 227.f }, { 84.f, 228.f }, { 83.f, 217.f } } });
@@ -267,24 +330,32 @@ int main()
     float y_offset = 60.f;
     points2d.push_back({ {{(88.f + x_offset) / 2.f, (193.f + y_offset) / 2.f}, {(294.f + x_offset) / 2.f, (113.f + y_offset) / 2.f}, {(189.f - x_offset) / 2.f, (282.f + y_offset) / 2.f}, {(394.f - x_offset) / 2.f, (188.f + y_offset) / 2.f}} });
 
-    /*points2d.push_back({ 2.0, 3.0 });
-    points2d.push_back({ 3.0, 2.0 });
-    points2d.push_back({ 4.0, 1.0 });
-    */
+    // init rotation state
+    Rotation_State state;
 
+    // init rotation matrices
+    Matrix4x4 rot_mat_x, rot_mat_z, rot_mat_y, rot_mat_zy, rot_mat;
+    update_rotation_matrix_angle(&rot_mat_x, &state, 1);
+    update_rotation_matrix_angle(&rot_mat_y, &state, 2);
+    update_rotation_matrix_angle(&rot_mat_z, &state, 4);
+    rot_mat_zy = multiply_matrices(rot_mat_z, rot_mat_y);
+    rot_mat = multiply_matrices(rot_mat_zy, rot_mat_x);
 
+    
+    // init variables
     bool quit = false;
     SDL_Event e;
-    float angle = 0.0f;
-    float px_density = 0.05f;
-    float obj_scale = 1.0f;
-    float rotate_by = 1.0f;
+    float rotation_angle = 1.0f;
+    float px_density = 0.01f;
+    float obj_scale = 3.0f;
     float x_pos = (float)(width / 2);
     float y_pos = (float)(height / 2);
     float movement_step = 10.0f;
+    bool matrix_updated = false;
     Render_Color color = { 255, 0, 0, 255 };
     Render_Color bg_color = { 0, 0, 0, 255 };
     
+    // read points and calculate them
     std::vector<std::vector<Point_3D>> points = read_file();
     std::vector<Point_3D> processed_points_3d;
     for (auto it = points.begin(); it != points.end(); it++) {
@@ -293,10 +364,11 @@ int main()
         processed_points_3d.insert(processed_points_3d.end(), temp_vec.begin(), temp_vec.end());
     }
     //std::vector<Point_2D> processed_points_2d = calc_bezier_curve(points2d, px_density);
-
+    std::vector<Point_3D> rotatedPoints = processed_points_3d;
     std::cout << processed_points_3d.size() << std::endl;
 
-
+    // set initial position
+    multiply_matrix_vector(processed_points_3d, rotatedPoints, rot_mat);
     while (!quit) {
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) {
@@ -343,39 +415,76 @@ int main()
                         obj_scale = 0.0f;
                     }
                 }
-                if (e.key.key == SDLK_UP) {
-                    std::cout << "UP KEY PRESSED" << std::endl;
-                    angle += 2.0f;
-                    if (angle >= 360.0f) { angle = 0.0f; }
-                    rotate_by = 1;
+                if (e.key.key == SDLK_KP_8 || e.key.key == SDLK_UP) {
+                    std::cout << "8 || UP KEY PRESSED" << std::endl;
+                    state.angleX += rotation_angle;
+                    update_rotation_matrix_angle(&rot_mat_x, &state, 1);
+                    matrix_updated = true;
                 }
-                if (e.key.key == SDLK_DOWN) {
-                    std::cout << "DOWN KEY PRESSED" << std::endl;
-                    angle -= 2.0f;
-                    if (angle <= 0) { angle = 360.0f; }
-                    rotate_by = 1;
+                if (e.key.key == SDLK_KP_2 || e.key.key == SDLK_DOWN) {
+                    std::cout << "2 || DOWN KEY PRESSED" << std::endl;
+                    state.angleX -= rotation_angle;
+                    update_rotation_matrix_angle(&rot_mat_x, &state, 1);
+                    matrix_updated = true;
                 }
-                if (e.key.key == SDLK_LEFT) {
-                    std::cout << "LEFT KEY PRESSED" << std::endl;
-                    angle -= 2.0f;
-                    if (angle <= 0) { angle = 360.0f; }
-                    rotate_by = 4;
+                if (e.key.key == SDLK_KP_4 || e.key.key == SDLK_LEFT) {
+                    std::cout << "4 || LEFT KEY PRESSED" << std::endl;
+                    state.angleY -= rotation_angle;
+                    update_rotation_matrix_angle(&rot_mat_y, &state, 2);
+                    matrix_updated = true;
                 }
-                if (e.key.key == SDLK_RIGHT) {
-                    std::cout << "RIGHT KEY PRESSED" << std::endl;
-                    angle += 2.0f;
-                    if (angle >= 360.0f) { angle = 0.0f; }
-                    rotate_by = 4;
+                if (e.key.key == SDLK_KP_6 || e.key.key == SDLK_RIGHT) {
+                    std::cout << "4 || LEFT KEY PRESSED" << std::endl;
+                    state.angleY += rotation_angle;
+                    update_rotation_matrix_angle(&rot_mat_y, &state, 2);
+                    matrix_updated = true;
+                }
+                if (e.key.key == SDLK_KP_7 || e.key.key == SDLK_Q) {
+                    std::cout << "7 || Q KEY PRESSED" << std::endl;
+                    state.angleZ -= rotation_angle;
+                    update_rotation_matrix_angle(&rot_mat_z, &state, 4);
+                    matrix_updated = true;
+                }
+                if (e.key.key == SDLK_KP_9 || e.key.key == SDLK_E) {
+                    std::cout << "9 || R KEY PRESSED" << std::endl;
+                    state.angleZ += rotation_angle;
+                    update_rotation_matrix_angle(&rot_mat_z, &state, 4);
+                    matrix_updated = true;
+                }
+                if (e.key.key == SDLK_R) {
+                    state.angleZ = 90.0f;
+                    state.angleX = 180.0f;
+                    state.angleY = 0.0f;
+                    obj_scale = 3.0f;
+                    update_rotation_matrix_angle(&rot_mat_z, &state, 4);
+                    update_rotation_matrix_angle(&rot_mat_y, &state, 2);
+                    update_rotation_matrix_angle(&rot_mat_x, &state, 1);
+                    matrix_updated = true;
+                }
+                if (matrix_updated) {
+                    if (state.angleX > 360.0f) state.angleX = 0.0f;
+                    if (state.angleX < 0.0f) state.angleX = 360.0f;
+
+                    if (state.angleY > 360.0f) state.angleY = 0.0f;
+                    if (state.angleY < 0.0f) state.angleY = 360.0f;
+
+                    if (state.angleZ > 360.0f) state.angleZ = 0.0f;
+                    if (state.angleZ < 0.0f) state.angleZ = 360.0f;
+
+                    rot_mat_zy = multiply_matrices(rot_mat_z, rot_mat_y);
+                    rot_mat = multiply_matrices(rot_mat_zy, rot_mat_x);
+                    multiply_matrix_vector(processed_points_3d, rotatedPoints, rot_mat);
+                    matrix_updated = false;
                 }
             }
         }
 
-            
             // clear screen
             SDL_SetRenderDrawColor(renderer, bg_color.r, bg_color.b, bg_color.g, bg_color.a);
             SDL_RenderClear(renderer);
 
-            render_bezier_surfaces(renderer, processed_points_3d, x_pos, y_pos, obj_scale, angle, rotate_by, color);
+            render_bezier_surfaces(renderer, rotatedPoints, x_pos, y_pos, obj_scale, color);
+            //processed_points_3d = rotatedPoints;
             //render_bezier_curve(renderer, processed_points_2d, x_pos, y_pos, obj_scale);
 
             SDL_RenderPresent(renderer);
