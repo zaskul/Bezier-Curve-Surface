@@ -131,10 +131,11 @@ void render_bezier_curve(SDL_Renderer* renderer, std::vector<Point_2D> pts, floa
     SDL_RenderLine(renderer, 0, y_pos, x_pos * 2, y_pos);
 }
 
-void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<Point_3D> pts, float x_pos, float y_pos, float obj_scale, float angle, short rotate_by, Render_Color color) {
+void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<Point_3D>& pts, float x_pos, float y_pos, float obj_scale, float angle, short rotate_by, Render_Color color) {
     if (rotate_by > 7) rotate_by = 7;
     if (rotate_by < 0) rotate_by = 0;
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+
     for (auto it = pts.begin(); it != pts.end(); it++) {
         Point_3D point = *it;
 
@@ -270,21 +271,12 @@ int main()
     points2d.push_back({ 3.0, 2.0 });
     points2d.push_back({ 4.0, 1.0 });
     */
-    std::vector<std::vector<Point_3D>> points = read_file();
-    std::vector<Point_3D> processed_points_3d;
-    for (auto it = points.begin(); it != points.end(); it++) {
-        std::vector<Point_3D> temp_vec = calc_bezier_surfaces(*it, 0.01f);
-        processed_points_3d.reserve(processed_points_3d.size() + temp_vec.size());
-        processed_points_3d.insert(processed_points_3d.end(), temp_vec.begin(), temp_vec.end());
-    }
-
-    std::vector<Point_2D> processed_points_2d = calc_bezier_curve(points2d, 0.01f);
 
 
     bool quit = false;
     SDL_Event e;
     float angle = 0.0f;
-    float px_density = 0.001f;
+    float px_density = 0.05f;
     float obj_scale = 1.0f;
     float rotate_by = 1.0f;
     float x_pos = (float)(width / 2);
@@ -292,7 +284,18 @@ int main()
     float movement_step = 10.0f;
     Render_Color color = { 255, 0, 0, 255 };
     Render_Color bg_color = { 0, 0, 0, 255 };
+    
+    std::vector<std::vector<Point_3D>> points = read_file();
+    std::vector<Point_3D> processed_points_3d;
+    for (auto it = points.begin(); it != points.end(); it++) {
+        std::vector<Point_3D> temp_vec = calc_bezier_surfaces(*it, px_density);
+        processed_points_3d.reserve(processed_points_3d.size() + temp_vec.size());
+        processed_points_3d.insert(processed_points_3d.end(), temp_vec.begin(), temp_vec.end());
+    }
+    //std::vector<Point_2D> processed_points_2d = calc_bezier_curve(points2d, px_density);
+
     std::cout << processed_points_3d.size() << std::endl;
+
 
     while (!quit) {
         while (SDL_PollEvent(&e)) {
@@ -320,12 +323,54 @@ int main()
                     std::cout << "S KEY PRESSED" << std::endl;
                     y_pos -= movement_step;
                 }
+                if (e.key.key == SDLK_EQUALS) {
+                    std::cout << "+ KEY PRESSED" << std::endl;
+                    std::cout << "CURRENT SCALE: " << obj_scale << std::endl;
+                    if (obj_scale > 0.f) {
+                        obj_scale += 1.f;
+                    }
+                    else {
+                        obj_scale = 1.0f;
+                    }
+                }
+                if (e.key.key == SDLK_MINUS) {
+                    std::cout << "- KEY PRESSED" << std::endl;
+                    std::cout << "CURRENT SCALE: " << obj_scale << std::endl;
+                    if (obj_scale > 0.f) {
+                        obj_scale -= 1.f;
+                    }
+                    else {
+                        obj_scale = 0.0f;
+                    }
+                }
+                if (e.key.key == SDLK_UP) {
+                    std::cout << "UP KEY PRESSED" << std::endl;
+                    angle += 2.0f;
+                    if (angle >= 360.0f) { angle = 0.0f; }
+                    rotate_by = 1;
+                }
+                if (e.key.key == SDLK_DOWN) {
+                    std::cout << "DOWN KEY PRESSED" << std::endl;
+                    angle -= 2.0f;
+                    if (angle <= 0) { angle = 360.0f; }
+                    rotate_by = 1;
+                }
+                if (e.key.key == SDLK_LEFT) {
+                    std::cout << "LEFT KEY PRESSED" << std::endl;
+                    angle -= 2.0f;
+                    if (angle <= 0) { angle = 360.0f; }
+                    rotate_by = 4;
+                }
+                if (e.key.key == SDLK_RIGHT) {
+                    std::cout << "RIGHT KEY PRESSED" << std::endl;
+                    angle += 2.0f;
+                    if (angle >= 360.0f) { angle = 0.0f; }
+                    rotate_by = 4;
+                }
             }
         }
 
-            angle += 2.0f;
-            if (angle >= 360.0f) { angle = 0.0f; }
-
+            
             // clear screen
             SDL_SetRenderDrawColor(renderer, bg_color.r, bg_color.b, bg_color.g, bg_color.a);
             SDL_RenderClear(renderer);
