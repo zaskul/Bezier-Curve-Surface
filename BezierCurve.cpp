@@ -104,9 +104,6 @@ void render_bezier_curve(SDL_Renderer* renderer, std::vector<Point_2D> pts, floa
         SDL_RenderPoint(renderer, it->x, it->y);
         SDL_SetRenderScale(renderer, 1.0f, 1.0f);
     }
-    // draw x and y axis
-    SDL_RenderLine(renderer, x_pos, 0, x_pos, y_pos * 2);
-    SDL_RenderLine(renderer, 0, y_pos, x_pos * 2, y_pos);
 }
 
 std::vector<Point_3D> calc_bezier_surfaces(std::vector<Point_3D> xyz, float px_density) {
