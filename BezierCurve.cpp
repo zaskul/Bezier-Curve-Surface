@@ -7,7 +7,7 @@
 #include <regex>
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <malloc.h>
+#include <SDL3_ttf/SDL_ttf.h>
 
 struct Point_2D {
     float x;
@@ -38,9 +38,9 @@ struct Matrix4x4 {
 };
 
 struct Rotation_State {
-    float angleZ = 90.0f;
-    float angleX = 180.0f;
-    float angleY = 0.0f;
+    float angleX;
+    float angleY;
+    float angleZ;
 };
 
 float calc_bernstein(float vw, int ij) {
@@ -130,31 +130,11 @@ std::vector<Point_3D> calc_bezier_surfaces(std::vector<Point_3D> xyz, float px_d
 }
 
 void render_bezier_surfaces(SDL_Renderer* renderer, std::vector<Point_3D>& pts, Render_Color color) {
-    /*std::vector<SDL_FPoint> sdl_pts;
-    sdl_pts.reserve(pts.size());*/
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
-
-
     for (auto it = pts.begin(); it != pts.end(); it++) {
         Point_3D point = *it;
-        if (point.z > 0.983f && point.z < 0.985f) {
-            SDL_SetRenderDrawColor(renderer, 255.0f, 0.0f, color.b, color.a);
-        }
-        else if (point.z >= 0.985f && point.z < 0.987f) {
-            SDL_SetRenderDrawColor(renderer, 0.0f, 255.0f, color.b, color.a);
-        }
-        else if (point.z >= 0.987f){
-            SDL_SetRenderDrawColor(renderer, 255.0f, 255.0f, color.b, color.a);
-        }
-        else if (point.z == 1.0f) {
-            SDL_SetRenderDrawColor(renderer, 255.0f, 255.0f, 255.0f, color.a);
-
-        }
-
         SDL_RenderPoint(renderer, point.p_2d.x, point.p_2d.y);
-        //sdl_pts.push_back({ static_cast<float>(point.p_2d.x),  static_cast<float>(point.p_2d.y)});
     }
-    //SDL_RenderPoints(renderer, sdl_pts.data(), sdl_pts.size());
 }
 
 Matrix4x4 multiply_matrices(const Matrix4x4& a, const Matrix4x4& b) {
@@ -208,7 +188,7 @@ std::vector <Point_3D> scale_into_view(std::vector <Point_3D> pts, int win_heigh
     Point_3D point;
     for (auto it = pts.begin(); it != pts.end(); it++) {
         point.p_2d.x = (it->p_2d.x + x_pos) * 0.5f * (float)win_width;
-        point.p_2d.y = (it->p_2d.y + y_pos) * 0.5f * (float)win_height;
+        point.p_2d.y = (it->p_2d.y + y_pos ) * 0.5f * (float)win_height;
         point.z = it->z;
         output.push_back(point);
     }
@@ -281,8 +261,7 @@ void update_rotation_matrix_angle(Matrix4x4* mz, Matrix4x4* my, Matrix4x4* mx, R
     mz->m[2][0] = cosf(thetaZ);
     mz->m[2][2] = 1;
     mz->m[3][3] = 1;
-    std::cout << "Z ROTATED" << std::endl;
-    
+
     //rotate Y
     if (state->angleY < 0.0f)
         state->angleY = 360.0f + state->angleY;
@@ -296,7 +275,6 @@ void update_rotation_matrix_angle(Matrix4x4* mz, Matrix4x4* my, Matrix4x4* mx, R
     my->m[2][0] = sinf(thetaY);
     my->m[2][2] = cosf(thetaY);
     my->m[3][3] = 1;
-    std::cout << "Y ROTATED" << std::endl;
     
     // rotate X
     if (state->angleX < 0.0f)
@@ -311,16 +289,110 @@ void update_rotation_matrix_angle(Matrix4x4* mz, Matrix4x4* my, Matrix4x4* mx, R
     mx->m[2][1] = -sinf(thetaX);
     mx->m[2][2] = cosf(thetaX);
     mx->m[3][3] = 1;
-    std::cout << "X ROTATED" << std::endl;
+
+    std::cout << "x rad: " << thetaX << "; x angle:" << state->angleX << std::endl;
+    std::cout << "y rad: " << thetaY << "; y angle:" << state->angleY << std::endl;
+    std::cout << "z rad: " << thetaZ << "; z angle:" << state->angleZ << std::endl;
 }
-void update_projection_matrix(Matrix4x4& pm, float ar, float near, float far, float fov) {
+void update_projection_matrix(Matrix4x4& pm, float ar, float fov) {
     float fov_rad = 1.0f / tanf(fov * 0.5f / 180.f * M_PI);
     pm.m[0][0] = ar * fov_rad;
     pm.m[1][1] = fov_rad;
-    pm.m[2][2] = far / (far - near);
-    pm.m[3][2] = (-far * near) / (far - near);
-    pm.m[2][3] = 1.0f;
-    pm.m[3][3] = 0.0f;
+}
+
+void init_3d_points(std::vector<Point_3D>& pts, std::string file_name, float px_density) {
+    std::vector<std::vector<Point_3D>> points = read_file(file_name);
+    // create a combined 3d point vector from the file
+    for (auto it = points.begin(); it != points.end(); it++) {
+        std::vector<Point_3D> temp_vec = calc_bezier_surfaces(*it, px_density);
+        pts.reserve(pts.size() + temp_vec.size());
+        pts.insert(pts.end(), temp_vec.begin(), temp_vec.end());
+    }
+}
+
+void init_2d_points(std::vector<Point_2D>& pts, float px_density) {
+    std::vector<std::array<Point_2D, 4>> points2d;
+    points2d.push_back({ {{ 174.f, 59.f }, { 146.f, 10.f }, { 131.f, 76.f }, { 131.f, 86.f } } });
+    points2d.push_back({ { { 131.f, 86.f }, { 131.f, 96.f }, { 124.f, 195.f }, { 119.f, 209.f } } });
+    points2d.push_back({ { { 119.f, 209.f }, { 110.f, 227.f }, { 84.f, 228.f }, { 83.f, 217.f } } });
+    points2d.push_back({ { { 83.f, 217.f }, { 79.f, 180.f}, { 136.f, 215.f }, { 142.f, 223.f } } });
+    points2d.push_back({ { { 142.f, 223.f }, { 154.f, 239.f }, { 195.f, 204.f}, { 193.f, 197.f } } });
+    float x_offset = 30.f;
+    float y_offset = 60.f;
+    points2d.push_back({ {{(88.f + x_offset) / 2.f, (193.f + y_offset) / 2.f}, {(294.f + x_offset) / 2.f, (113.f + y_offset) / 2.f}, {(189.f - x_offset) / 2.f, (282.f + y_offset) / 2.f}, {(394.f - x_offset) / 2.f, (188.f + y_offset) / 2.f}} });
+    pts = calc_bezier_curve(points2d, px_density);
+}
+
+// render keybindings help box
+void render_text(SDL_Renderer* renderer, const std::string& text, int x, int y, SDL_Color color, TTF_Font* font) {
+    SDL_Surface* surface = TTF_RenderText_Solid(font, text.c_str(), text.length(), color);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+    int text_width = surface->w;
+    int text_height = surface->h;
+    SDL_DestroySurface(surface);
+
+    SDL_FRect dest_rect = { (float)x, (float)y, (float)text_width, (float)text_height };
+    SDL_RenderTexture(renderer, texture, NULL, &dest_rect);
+
+    SDL_DestroyTexture(texture);
+}
+void render_help_box(SDL_Renderer* renderer, TTF_Font* font, short current_color, short mouse_wheel_action) {
+    SDL_Color white = { 255, 255, 255, 255 };
+    SDL_Color variable_color = { 0, 255, 0 , 255 };
+    std::string current_color_array[4] = { "Red", "Green", "Blue", "Alpha" };
+    std::string mouse_wheel_action_array[2] = {"Color", "FOV"};
+    int x = 20, y = 20;  // Position of the help box
+    render_text(renderer, "CONTROLS:", x, y, white, font);
+    y += 30;
+    render_text(renderer, "W / S  - Move Up/Down", x, y, white, font);
+    y += 25;
+    render_text(renderer, "A / D  - Move Left/Right", x, y, white, font);
+    y += 25;
+    render_text(renderer, "+ / -  - Offset object in the Z axis", x, y, white, font);
+    y += 25;
+    render_text(renderer, "M / N  - Change color / FOV on scroll", x, y, white, font);
+    y += 25;
+    render_text(renderer, "V / B Select color to change R>G>B", x, y, white, font);
+    y += 25;
+    render_text(renderer, "Up / Down arrow - Rotate X Axis", x, y, white, font);
+    y += 25;
+    render_text(renderer, "Left / Right arrow - Rotate Y Axis", x, y, white, font);
+    y += 25;
+    render_text(renderer, "Q / E  - Rotate Z Axis", x, y, white, font);
+    y += 25;
+    render_text(renderer, "R - Reset Transformations", x, y, white, font);
+    y += 25;
+    std::string col = "Current color: " + current_color_array[current_color];
+    render_text(renderer, col, x, y, variable_color, font);
+    y += 25;
+    std::string mwa = "Current action: Change " + mouse_wheel_action_array[mouse_wheel_action];
+    render_text(renderer, mwa, x, y, variable_color, font);
+    y += 25;
+    render_text(renderer, "H - Show/Hide this box", x, y, white, font);
+}
+
+void change_color(Render_Color& color , short current_color, int color_step) {
+    if (current_color == 0) {
+        color.r += color_step;
+        if (color.r > 255) color.r = 255;
+        if (color.r < 0) color.r = 0;
+    }
+    else if (current_color == 1) {
+        color.g += color_step;
+        if (color.g > 255) color.g = 255;
+        if (color.g < 0) color.g = 0;
+    }
+    else if (current_color == 2) {
+        color.b += color_step;
+        if (color.b > 255) color.b = 255;
+        if (color.b < 0) color.b = 0;
+    }
+    else if (current_color == 3) {
+        color.a += color_step;
+        if (color.a > 255) color.a = 255;
+        if (color.a < 0) color.a = 0;
+    }
 }
 
 int main()
@@ -328,7 +400,6 @@ int main()
     // init window and renderer
     int width = 1000;
     int height = 1000;
-    Point_3D camera;
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
@@ -349,22 +420,26 @@ int main()
         return 1;
     }
 
-    std::vector<std::array<Point_2D, 4>> points2d;
+    // init font
+    if (TTF_Init() == -1) {
+        std::cerr << "SDL_ttf could not initialize!" << std::endl;
+    }
+    TTF_Font* font = TTF_OpenFont("ThirdParty/ARIAL.ttf", 24);
+    if (!font) {
+        std::cerr << "Failed to load font" << std::endl;
+    }
 
-    points2d.push_back({{{ 174.f, 59.f }, { 146.f, 10.f }, { 131.f, 76.f }, { 131.f, 86.f } } });
-    points2d.push_back({ { { 131.f, 86.f }, { 131.f, 96.f }, { 124.f, 195.f }, { 119.f, 209.f } } });
-    points2d.push_back({ { { 119.f, 209.f }, { 110.f, 227.f }, { 84.f, 228.f }, { 83.f, 217.f } } });
-    points2d.push_back({ { { 83.f, 217.f }, { 79.f, 180.f}, { 136.f, 215.f }, { 142.f, 223.f } } });
-    points2d.push_back({ { { 142.f, 223.f }, { 154.f, 239.f }, { 195.f, 204.f}, { 193.f, 197.f } } });
-    float x_offset = 30.f;
-    float y_offset = 60.f;
-    points2d.push_back({ {{(88.f + x_offset) / 2.f, (193.f + y_offset) / 2.f}, {(294.f + x_offset) / 2.f, (113.f + y_offset) / 2.f}, {(189.f - x_offset) / 2.f, (282.f + y_offset) / 2.f}, {(394.f - x_offset) / 2.f, (188.f + y_offset) / 2.f}} });
+    // init rotation matrices
+    Matrix4x4 rot_mat_x, rot_mat_z, rot_mat_y, rot_mat_xy, rot_mat, proj_mat;
 
     // init rotation state
     Rotation_State state;
 
-    // init rotation matrices
-    Matrix4x4 rot_mat_x, rot_mat_z, rot_mat_y, rot_mat_xy, rot_mat, proj_mat;
+    // set initial position
+    state.angleX = 90.0f;
+    state.angleY = 90.0f;
+    state.angleZ = 90.0f;
+    update_rotation_matrix_angle(&rot_mat_z, &rot_mat_y, &rot_mat_x, &state);
 
     // init projection matrix
     float aspect_ratio = (float)height / (float)width;
@@ -384,48 +459,59 @@ int main()
     bool quit = false;
     SDL_Event e;
     float rotation_angle = 10.0f;
-    float px_density = 0.1f;
+    float px_density = 0.05f;
     float x_pos = 1.0f;
     float y_pos = 1.0f;
     float z_offset = 6.0f;
     float movement_step = 0.01f;
+    int color_step = 15;
+    short current_color = 0;
+    short mouse_wheel_action = 0;
     Render_Color color = { 255, 0, 0, 255 };
     Render_Color bg_color = { 0, 0, 0, 255 };
+    bool show_help_box = true;
     
-    // read points and calculate them
-    std::vector<std::vector<Point_3D>> points = read_file("teapotCGA.txt");
-    std::vector<Point_3D> processed_points_3d, rotated_points, projected_points, test1, test2;
-
-    for (auto it = points.begin(); it != points.end(); it++) {
-        std::vector<Point_3D> temp_vec = calc_bezier_surfaces(*it, px_density);
-        processed_points_3d.reserve(processed_points_3d.size() + temp_vec.size());
-        processed_points_3d.insert(processed_points_3d.end(), temp_vec.begin(), temp_vec.end());
-    }
-
-    //std::vector<Point_2D> processed_points_2d = calc_bezier_curve(points2d, px_density);
+    // init point vectors
+    std::vector<Point_3D> processed_points_3d, rotated_points, projected_points;
+    init_3d_points(processed_points_3d, "teapotCGA.txt", px_density);
+    std::vector<Point_2D> processed_points_2d;
+    //init_2d_points(processed_points_2d, px_density);
     
     // amount of points
     std::cout << processed_points_3d.size() << std::endl;
-
-    // set initial position
-    state.angleX = 0.0f;
-    state.angleY = 0.0f;
-    state.angleZ = 0.0f;
-    update_rotation_matrix_angle(&rot_mat_z, &rot_mat_y, &rot_mat_x, &state);
 
     while (!quit) {
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_EVENT_QUIT) {
                 quit = true;
             }
+            if (e.type == SDL_EVENT_MOUSE_WHEEL) {
+                if (e.wheel.y > 0) {
+                    std::cout << "UP" << std::endl;
+                    if (mouse_wheel_action == 0) {
+                        change_color(color, current_color, color_step);
+                    }
+                    else if (mouse_wheel_action == 1) {
+                        fov++;
+                        update_projection_matrix(proj_mat, aspect_ratio, fov);
+                    }
+                }
+                if (e.wheel.y < 0) {
+                    std::cout << "DOWN" << std::endl;
+                    if (mouse_wheel_action == 0) {
+                        change_color(color, current_color, -color_step);
+                    }
+                    else if (mouse_wheel_action == 1) {
+                        fov--;
+                        update_projection_matrix(proj_mat, aspect_ratio, fov);
+                    }
+                }
+            }
             if (e.type == SDL_EVENT_KEY_DOWN) {
+                // object movement
                 if (e.key.key == SDLK_A) {
                     std::cout << "A KEY PRESSED" << std::endl;
                     x_pos -= movement_step;
-                    color.r -= 5;
-                    if (color.r == 0) color.r = 255;
-                    color.b += 5;
-                    if (color.b == 255) color.b = 0;
                 }
                 if (e.key.key == SDLK_D) {
                     std::cout << "D KEY PRESSED" << std::endl;
@@ -439,44 +525,41 @@ int main()
                     std::cout << "S KEY PRESSED" << std::endl;
                     y_pos -= movement_step;
                 }
+                // object offset
                 if (e.key.key == SDLK_EQUALS) {
                     std::cout << "+ KEY PRESSED" << std::endl;
                     std::cout << "CURRENT SCALE: " << z_offset << std::endl;
                     if (z_offset != 0.0f)
                         z_offset -= 1.f;
                 }
-                // projection matrix near
-                if (e.key.key == SDLK_H) {
-                    update_projection_matrix(proj_mat, aspect_ratio, near++, far, fov);
-                    std::cout << "near: " << near << std::endl;
-                }
-                if (e.key.key == SDLK_B) {
-                    update_projection_matrix(proj_mat, aspect_ratio, near--, far, fov);
-                    std::cout << "near: " << near << std::endl;
-                }
-                // projection matrix far
-                if (e.key.key == SDLK_J) {
-                    update_projection_matrix(proj_mat, aspect_ratio, near, far++, fov);
-                    std::cout << "far: " << far << std::endl;
-                }
-                if (e.key.key == SDLK_N) {
-                    update_projection_matrix(proj_mat, aspect_ratio, near, far--, fov);
-                    std::cout << "far: " << far << std::endl;
-                }
-                // projection matrix fov
-                if (e.key.key == SDLK_K) {
-                    update_projection_matrix(proj_mat, aspect_ratio, near, far, fov++);
-                    std::cout << "fov: " << fov << std::endl;
-                }
-                if (e.key.key == SDLK_M) {
-                    update_projection_matrix(proj_mat, aspect_ratio, near, far, fov--);
-                    std::cout << "fov: " << fov << std::endl;
-                }
                 if (e.key.key == SDLK_MINUS) {
                     std::cout << "- KEY PRESSED" << std::endl;
                     std::cout << "CURRENT SCALE: " << z_offset << std::endl;
                     z_offset += 1.f;
                 }
+                // change color / fov on scroll movement
+                if (e.key.key == SDLK_M) {
+                    std::cout << "M KEY PRESSED" << std::endl;
+                    mouse_wheel_action = 0;
+                }
+                if (e.key.key == SDLK_N) {
+                    std::cout << "N KEY PRESSED" << std::endl;
+                    mouse_wheel_action = 1;
+                }
+                // change color selection
+                if (e.key.key == SDLK_V) {
+                    current_color++;
+                    if (current_color > 3) {
+                        current_color = 0;
+                    }
+                }
+                if (e.key.key == SDLK_B) {
+                    current_color--;
+                    if (current_color < 0) {
+                        current_color = 3;
+                    }
+                }
+                // object rotation
                 if (e.key.key == SDLK_KP_8 || e.key.key == SDLK_UP) {
                     std::cout << "8 || UP KEY PRESSED" << std::endl;
                     state.angleX += rotation_angle;
@@ -500,41 +583,46 @@ int main()
                 if (e.key.key == SDLK_KP_9 || e.key.key == SDLK_E) {
                     std::cout << "9 || R KEY PRESSED" << std::endl;
                     state.angleZ += rotation_angle;
-                    //print_z_values(rotated_points);
                 }
+                if (e.key.key == SDLK_H) {
+                    show_help_box = !show_help_box;
+                }
+                // reset to set state
                 if (e.key.key == SDLK_R) {
                     state.angleZ = 90.0f;
                     state.angleX = 180.0f;
                     state.angleY = 0.0f;
                     z_offset = 6.0f;
                 }
-                std::cout << "z state: " << state.angleZ << std::endl;
                 update_rotation_matrix_angle(&rot_mat_z, &rot_mat_y, &rot_mat_x, &state);
             }
         }
 
-            // 3d to 2d projection
-            rot_mat_xy = multiply_matrices(rot_mat_y, rot_mat_x);
-            rot_mat = multiply_matrices(rot_mat_z, rot_mat_xy);
-            multiply_matrix_vector(processed_points_3d, rotated_points, rot_mat);
-            rotated_points = translate_points(rotated_points, z_offset);
-            multiply_matrix_vector(rotated_points, projected_points, proj_mat);
-            projected_points = scale_into_view(projected_points, height, width, x_pos, y_pos);
-            std::sort(projected_points.begin(), projected_points.end(), [](Point_3D& p1, Point_3D& p2) {
-                return p1.z > p2.z;
-            });
+        // 3d to 2d projection
+        rot_mat_xy = multiply_matrices(rot_mat_y, rot_mat_x);
+        rot_mat = multiply_matrices(rot_mat_z, rot_mat_xy);
+        multiply_matrix_vector(processed_points_3d, rotated_points, rot_mat);
+        rotated_points = translate_points(rotated_points, z_offset);
+        multiply_matrix_vector(rotated_points, projected_points, proj_mat);
+        projected_points = scale_into_view(projected_points, height, width, x_pos, y_pos);
+        std::sort(projected_points.begin(), projected_points.end(), [](Point_3D& p1, Point_3D& p2) {
+            return p1.z > p2.z;
+        });
             
-            // clear screen
-            SDL_SetRenderDrawColor(renderer, bg_color.r, bg_color.b, bg_color.g, bg_color.a);
-            SDL_RenderClear(renderer);
+        // clear screen
+        SDL_SetRenderDrawColor(renderer, bg_color.r, bg_color.b, bg_color.g, bg_color.a);
+        SDL_RenderClear(renderer);
 
-            // render points
-            render_bezier_surfaces(renderer, projected_points, color);
-            //render_bezier_curve(renderer, processed_points_2d, x_pos, y_pos, obj_scale);
-            //draw_axes(renderer, 5000, (float)width / 2, (float)height /2);
-            SDL_RenderPresent(renderer);
+        // render surfaces
+        render_bezier_surfaces(renderer, projected_points, color);
 
-            SDL_Delay(16);
+        // render curve
+        //render_bezier_curve(renderer, processed_points_2d, x_pos, y_pos, 3.0f);
+        if (show_help_box) {
+            render_help_box(renderer, font, current_color, mouse_wheel_action);
+        }
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16);
     }
     
     SDL_DestroyRenderer(renderer);
