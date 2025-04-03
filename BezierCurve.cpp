@@ -101,8 +101,8 @@ std::vector<Point_2D> calc_bezier_curve(std::vector<std::array<Point_2D, 4>> xy,
     return res_vector;
 }
 
-void render_bezier_curve(SDL_Renderer* renderer, std::vector<Point_2D> pts, float x_pos, float y_pos, float scale) {
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+void render_bezier_curve(SDL_Renderer* renderer, std::vector<Point_2D> pts, float x_pos, float y_pos, float scale, Render_Color color) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     for (auto it = pts.begin(); it != pts.end(); it++) {
         it->x += x_pos;
         it->y += y_pos;
@@ -128,7 +128,6 @@ Point_2D check_if_control_point_in_range(std::vector<std::array<Point_2D, 4>> pt
     std::vector<Point_2D> pos_vector = {};
     float row = 0.0f;
     float col = 0.0f;
-    // 5 19, 5 20
     for (auto it = pts.begin(); it != pts.end(); it++) {
         for (auto array_it = it->begin(); array_it != it->end(); array_it++) {
             SDL_FPoint sdl_point = { array_it->x, array_it->y };
@@ -385,13 +384,11 @@ void render_help_box(SDL_Renderer* renderer, TTF_Font* font, short current_color
     y += 25;
     render_text(renderer, "A / D  - Move Left/Right", x, y, white, font);
     y += 25;
-    render_text(renderer, "+ / -  - Offset object in the Z axis", x, y, white, font);
-    y += 25;
-    render_text(renderer, "M / N  - Change color / FOV on scroll", x, y, white, font);
-    y += 25;
-    render_text(renderer, "V / B Select color to change R>G>B", x, y, white, font);
-    y += 25;
     if (!show_2d){
+        render_text(renderer, "+ / -  - Offset object in the Z axis", x, y, white, font);
+        y += 25;
+        render_text(renderer, "M / N  - Change color / FOV on scroll", x, y, white, font);
+        y += 25;
         render_text(renderer, "Up / Down arrow - Rotate X Axis", x, y, white, font);
         y += 25;
         render_text(renderer, "Left / Right arrow - Rotate Y Axis", x, y, white, font);
@@ -401,6 +398,14 @@ void render_help_box(SDL_Renderer* renderer, TTF_Font* font, short current_color
         render_text(renderer, "R - Reset Transformations", x, y, white, font);
         y += 25;
     }
+    else {
+        render_text(renderer, "M / N  - Change color / scale on scroll", x, y, white, font);
+        y += 25;
+        render_text(renderer, "0 - Move/Add control points", x, y, white, font);
+        y += 25;
+    }
+    render_text(renderer, "V / B Select color to change R>G>B", x, y, white, font);
+    y += 25;
     std::string col = "Current color: " + current_color_array[current_color];
     render_text(renderer, col, x, y, variable_color, font);
     y += 25;
@@ -497,8 +502,6 @@ int main()
 
     // init rotation state
     Rotation_State state;
-
-    // set initial position
     state.angleX = 90.0f;
     state.angleY = 90.0f;
     state.angleZ = 90.0f;
@@ -522,7 +525,7 @@ int main()
     bool quit = false;
     SDL_Event e;
     float rotation_angle = 10.0f;
-    float px_density = 0.05f;
+    float px_density = 0.01f;
     float x_pos = 0.0f;
     float y_pos = 0.0f;
     float z_offset = 6.0f;
@@ -533,7 +536,7 @@ int main()
     Render_Color color = { 255, 0, 0, 255 };
     Render_Color bg_color = { 0, 0, 0, 255 };
     bool show_help_box = true;
-    float point_scale = 3.0f;
+    float point_scale = 1.0f;
 
     // init point vectors
     std::vector<Point_3D> processed_points_3d, rotated_points, projected_points;
@@ -546,17 +549,16 @@ int main()
         processed_points_2d = calc_bezier_curve(points2d, px_density);
     }
 
-    // amount of points
-
-    bool add_new_points = false;
+    // 2D curve move/add
+    bool add_new_points = true;
     std::array<Point_2D, 4> new_curve = {};
     size_t points_in_array = 0;
     bool is_clicked = false;
     SDL_FRect mouse_hitbox = {0.0f, 0.0f, 0.0f, 0.0f};
     float mouse_hitbox_size = 10.0f;
-    bool move_points = true;
+    bool move_points = false;
     Point_2D point_selected;
-    bool change_point_pos = false;
+    bool change_point_pos = true;
     bool point_moved = false;
 
     while (!quit) {
@@ -566,7 +568,8 @@ int main()
             }
             if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
                 if (show_2d) {
-                    mouse_hitbox = { e.button.x - mouse_hitbox_size / 2, e.button.y - mouse_hitbox_size / 2, mouse_hitbox_size, mouse_hitbox_size };
+                    // move control point
+                    mouse_hitbox = { e.button.x - mouse_hitbox_size / 2 - x_pos, e.button.y - mouse_hitbox_size / 2 - y_pos, mouse_hitbox_size, mouse_hitbox_size };
                     if (move_points) {
                         point_selected = check_if_control_point_in_range(points2d, mouse_hitbox);
                         std::cout << "x :" << point_selected.x << " y: " << point_selected.y << std::endl;
@@ -575,33 +578,37 @@ int main()
                             move_points = false;
                         }
                     }
-                    else if (change_point_pos) {
+                    else if (change_point_pos && !add_new_points) {
                         std::vector<std::array<Point_2D, 4>>::iterator iter = points2d.begin() + point_selected.x;
                         std::array<Point_2D, 4>::iterator iter2 = iter->begin() + point_selected.y;
                         iter2->x = e.button.x;
-                        //std::cout << "x :" << point_selected.x << " y: " << point_selected.y << std::endl;
                         iter2->y = e.button.y;
                         point_moved = true;
                         change_point_pos = false;
                     }
-                    else if (points_in_array < 2 && !is_clicked) {
+                    // add new curve
+                    else if (points_in_array < 2 && !is_clicked && add_new_points) {
                         std::cout << "ADDED x:" << e.button.x << "y: " << e.button.y << std::endl;
-                        new_curve[points_in_array * 3] = Point_2D(e.button.x, e.button.y);
+                        // add to pos 0 then to pos 3
+                        new_curve[points_in_array * 3] = Point_2D(e.button.x - x_pos, e.button.y - y_pos);
                         points_in_array++;
                         is_clicked = true;
                     }
+                    // offset the hitbox to display correctly
+                    mouse_hitbox.x += x_pos;
+                    mouse_hitbox.y += y_pos;
                 }
             }
             if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
                 if (show_2d) {
                     is_clicked = false;
                     // create a straight line
-                    if (!change_point_pos) {
+                    if (!change_point_pos && !add_new_points) {
                         processed_points_2d = calc_bezier_curve(points2d, px_density);
                         move_points = true;
                         point_moved = false;
                     }
-                    else if (points_in_array == 2) {
+                    else if (points_in_array == 2 && add_new_points) {
                         Point_2D P0 = new_curve[0];
                         Point_2D P3 = new_curve[3];
                         // create point at 1/3 and 2/3 of the line length
@@ -628,8 +635,13 @@ int main()
                         change_color(color, current_color, color_step);
                     }
                     else if (mouse_wheel_action == 1) {
-                        fov++;
-                        update_projection_matrix(proj_mat, aspect_ratio, fov);
+                        if (!show_2d) {
+                            fov++;
+                            update_projection_matrix(proj_mat, aspect_ratio, fov);
+                        }
+                        else {
+                            point_scale++;
+                        }
                     }
                 }
                 if (e.wheel.y < 0) {
@@ -638,8 +650,15 @@ int main()
                         change_color(color, current_color, -color_step);
                     }
                     else if (mouse_wheel_action == 1) {
-                        fov--;
-                        update_projection_matrix(proj_mat, aspect_ratio, fov);
+                        if (!show_2d) {
+                            fov--;
+                            update_projection_matrix(proj_mat, aspect_ratio, fov);
+                        }
+                        else {
+                            if (point_scale - 1 != 0) {
+                                point_scale--;
+                            }
+                        }
                     }
                 }
             }
@@ -735,6 +754,23 @@ int main()
                     update_rotation_matrix_angle(&rot_mat_z, &rot_mat_y, &rot_mat_x, &state);
                 }
             }
+            else {
+                if (e.key.key == SDLK_0) {
+                    if (add_new_points) {
+                        add_new_points = false;
+                        move_points = true;
+                    }
+                    else {
+                        add_new_points = true;
+                        move_points = false;
+                    }
+                }
+                if (e.key.key == SDLK_R) {
+                    x_pos = 0.0f;
+                    y_pos = 0.0f;
+                    point_scale = 0.0f;
+                }
+            }
         }
         // ONLY FOR 3D
         if (!show_2d) {
@@ -760,10 +796,10 @@ int main()
         }
         else {
         // render curves
-        render_bezier_curve(renderer, processed_points_2d, x_pos, y_pos, point_scale);
+        SDL_SetRenderScale(renderer, point_scale, point_scale);
+        render_bezier_curve(renderer, processed_points_2d, x_pos, y_pos, point_scale, color);
         render_2d_control_points(renderer, points2d, x_pos, y_pos, point_scale);
         SDL_RenderFillRect(renderer, &mouse_hitbox);
-
         }
         if (show_help_box) {
             render_help_box(renderer, font, current_color, mouse_wheel_action);
