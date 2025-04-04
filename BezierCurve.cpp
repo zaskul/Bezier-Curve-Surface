@@ -44,7 +44,7 @@ struct Rotation_State {
 };
 
 // SHOW SURFACES OR CURVES
-static bool show_2d = true;
+static bool show_2d = false;
 
 float calc_bernstein(float vw, int ij) {
     switch (ij)
@@ -228,8 +228,7 @@ std::vector<Point_3D> translate_points(std::vector<Point_3D> pts, float z_offset
     std::vector<Point_3D> output;
 
     for (auto it = pts.begin(); it != pts.end(); it++) {
-        float z = it->z + z_offset;
-        output.push_back(Point_3D(it->p_2d.x, it->p_2d.y, z));
+        output.push_back(Point_3D(it->p_2d.x, it->p_2d.y, it->z + z_offset));
     }
     return output;
 }
@@ -348,14 +347,14 @@ void update_projection_matrix(Matrix4x4& pm, float ar, float fov) {
     pm.m[1][1] = fov_rad;
 }
 
-void prepare_3d_points(std::vector<Point_3D>& pts, std::string file_name, float px_density) {
-    std::vector<std::vector<Point_3D>> points = read_file(file_name);
-    // create a combined 3d point vector from the file
-    for (auto it = points.begin(); it != points.end(); it++) {
+void prepare_3d_points(std::vector<std::vector<Point_3D>>& pts, std::vector<Point_3D>& output_vec, float px_density) {
+    std::vector<Point_3D> temp_out_vec;
+    for (auto it = pts.begin(); it != pts.end(); it++) {
         std::vector<Point_3D> temp_vec = calc_bezier_surfaces(*it, px_density);
-        pts.reserve(pts.size() + temp_vec.size());
-        pts.insert(pts.end(), temp_vec.begin(), temp_vec.end());
+        temp_out_vec.reserve(temp_out_vec.size() + temp_vec.size());
+        temp_out_vec.insert(temp_out_vec.end(), temp_vec.begin(), temp_vec.end());
     }
+    output_vec = temp_out_vec;
 }
 
 // render keybindings help box
@@ -525,11 +524,21 @@ int main()
     bool quit = false;
     SDL_Event e;
     float rotation_angle = 10.0f;
-    float px_density = 0.01f;
-    float x_pos = 0.0f;
-    float y_pos = 0.0f;
+    float px_density = 0.05f;
+    float x_pos;
+    float y_pos;
+    float movement_step;
+    if (show_2d) {
+        x_pos = 0.0f;
+        y_pos = 0.0f;
+        movement_step = 10.0f;
+    }
+    else {
+        x_pos = 1.0f;
+        y_pos = 1.0f;
+        movement_step = 0.01f;
+    }
     float z_offset = 6.0f;
-    float movement_step = 10.0f;
     int color_step = 15;
     short current_color = 0;
     short mouse_wheel_action = 0;
@@ -539,11 +548,15 @@ int main()
     float point_scale = 1.0f;
 
     // init point vectors
+    std::vector<std::vector<Point_3D>> control_points_3d;
     std::vector<Point_3D> processed_points_3d, rotated_points, projected_points;
     std::vector<Point_2D> processed_points_2d;
+    // 3D rotation engaged
+    bool rotate_points = false;
     if (!show_2d) {
-        prepare_3d_points(processed_points_3d, "teapotCGA.txt", px_density);
-        std::cout << processed_points_3d.size() << std::endl;
+        control_points_3d = read_file("teapotCGA.txt");
+        prepare_3d_points(control_points_3d, processed_points_3d, px_density);
+        rotate_points = true;
     }
     else {
         processed_points_2d = calc_bezier_curve(points2d, px_density);
@@ -666,11 +679,11 @@ int main()
                 // object movement
                 if (e.key.key == SDLK_A) {
                     std::cout << "A KEY PRESSED" << std::endl;
-                    x_pos -= movement_step;
+                    x_pos += movement_step;
                 }
                 if (e.key.key == SDLK_D) {
                     std::cout << "D KEY PRESSED" << std::endl;
-                    x_pos += movement_step;
+                    x_pos -= movement_step;
                 }
                 if (e.key.key == SDLK_W) {
                     std::cout << "W KEY PRESSED" << std::endl;
@@ -750,40 +763,46 @@ int main()
                         state.angleX = 180.0f;
                         state.angleY = 0.0f;
                         z_offset = 6.0f;
+                        x_pos = 1.0f;
+                        y_pos = 1.0f;
                     }
                     update_rotation_matrix_angle(&rot_mat_z, &rot_mat_y, &rot_mat_x, &state);
+                    rotate_points = true;
                 }
-            }
-            else {
-                if (e.key.key == SDLK_0) {
-                    if (add_new_points) {
-                        add_new_points = false;
-                        move_points = true;
+                else {
+                    if (e.key.key == SDLK_0) {
+                        if (add_new_points) {
+                            add_new_points = false;
+                            move_points = true;
+                        }
+                        else {
+                            add_new_points = true;
+                            move_points = false;
+                        }
                     }
-                    else {
-                        add_new_points = true;
-                        move_points = false;
+                    if (e.key.key == SDLK_R) {
+                        x_pos = 0.0f;
+                        y_pos = 0.0f;
+                        point_scale = 1.0f;
                     }
                 }
-                if (e.key.key == SDLK_R) {
-                    x_pos = 0.0f;
-                    y_pos = 0.0f;
-                    point_scale = 0.0f;
-                }
-            }
+            } 
         }
         // ONLY FOR 3D
-        if (!show_2d) {
+        if (!show_2d && rotate_points) {
             // 3d to 2d projection
             rot_mat_xy = multiply_matrices(rot_mat_y, rot_mat_x);
             rot_mat = multiply_matrices(rot_mat_z, rot_mat_xy);
-            multiply_matrix_vector(processed_points_3d, rotated_points, rot_mat);
-            rotated_points = translate_points(rotated_points, z_offset);
-            multiply_matrix_vector(rotated_points, projected_points, proj_mat);
-            projected_points = scale_into_view(projected_points, height, width, x_pos, y_pos);
-            std::sort(projected_points.begin(), projected_points.end(), [](Point_3D& p1, Point_3D& p2) {
-                return p1.z > p2.z;
-                });
+            std::vector<std::vector<Point_3D>> copy_of_control_points_3d = control_points_3d;
+            for (auto it = copy_of_control_points_3d.begin(); it != copy_of_control_points_3d.end(); it++) {
+                multiply_matrix_vector(*it, rotated_points, rot_mat);
+                rotated_points = translate_points(rotated_points, z_offset);
+                multiply_matrix_vector(rotated_points, projected_points, proj_mat);
+                projected_points = scale_into_view(projected_points, height, width, x_pos, y_pos);
+                *it = projected_points;
+            }
+            prepare_3d_points(copy_of_control_points_3d, processed_points_3d, px_density);
+            rotate_points = false;
         }
      
         // clear screen
@@ -792,7 +811,7 @@ int main()
 
         if (!show_2d) {
         // render surfaces
-        render_bezier_surfaces(renderer, projected_points, color);
+        render_bezier_surfaces(renderer, processed_points_3d, color);
         }
         else {
         // render curves
