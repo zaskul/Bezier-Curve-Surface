@@ -146,7 +146,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="BezierCurve.cpp" />
+    <ClCompile Include="header_files\Text_Renderer.h" />
+    <ClCompile Include="src\Bezier_Curve.cpp" />
+    <ClCompile Include="src\Bezier_Surface.cpp" />
+    <ClCompile Include="src\Config.cpp" />
+    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Matrices.cpp" />
+    <ClCompile Include="src\Perspective_Projection.cpp" />
+    <ClCompile Include="src\Render_Color.cpp" />
+    <ClCompile Include="src\Text_Renderer.cpp" />
+    <ClCompile Include="src\Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Objects\teacup.txt">
@@ -156,6 +165,17 @@
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>
     </Text>
     <Text Include="Objects\teaspoon.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="header_files\Config.h" />
+    <ClInclude Include="header_files\Utils.h" />
+    <ClInclude Include="header_files\Bezier_Curve.h" />
+    <ClInclude Include="header_files\Bezier_Surface.h" />
+    <ClInclude Include="header_files\Matrices.h" />
+    <ClInclude Include="header_files\Perspective_Projection.h" />
+    <ClInclude Include="header_files\Point_2d.h" />
+    <ClInclude Include="header_files\Point_3d.h" />
+    <ClInclude Include="header_files\Render_Color.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
