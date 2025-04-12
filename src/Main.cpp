@@ -312,18 +312,7 @@ int main()
         }
         // ONLY FOR 3D
         if (!show_2d && rotate_points) {
-            // 3d to 2d projection
-            projection.rot_mat_xy = Matrices::multiply_matrices(projection.rot_mat_y, projection.rot_mat_x);
-            projection.rot_mat = Matrices::multiply_matrices(projection.rot_mat_z, projection.rot_mat_xy);
-            std::vector<std::vector<Point_3d>> copy_of_control_points_3d = bezier_surface.control_points_3d;
-            for (auto it = copy_of_control_points_3d.begin(); it != copy_of_control_points_3d.end(); it++) {
-                Matrices::multiply_matrix_vector(*it, bezier_surface.rotated_points, projection.rot_mat);
-                bezier_surface.translate_points(bezier_surface.rotated_points, z_offset);
-                Matrices::multiply_matrix_vector(bezier_surface.rotated_points, bezier_surface.projected_points, projection.proj_mat);
-                bezier_surface.scale_into_view(x_pos, y_pos);
-                *it = bezier_surface.projected_points;
-            }
-            bezier_surface.prepare_3d_points(copy_of_control_points_3d);
+            projection.apply_projection(bezier_surface, x_pos, y_pos, z_offset);
             rotate_points = false;
         }
      

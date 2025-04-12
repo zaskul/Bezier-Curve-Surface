@@ -1,6 +1,6 @@
 #pragma once
 #include "Matrices.h"
-
+#include "Bezier_Surface.h"
 class Perspective_Projection {
 public:
     float angle_x, angle_y, angle_z;
@@ -8,5 +8,6 @@ public:
     Perspective_Projection();
     void update_rotation_matrix_angle();
     void update_projection_matrix(Matrices::Matrix4x4& pm, float ar, float fov);
+    void apply_projection(Bezier_Surface& bs, float x_pos, float y_pos, float z_offset);
 };
     
