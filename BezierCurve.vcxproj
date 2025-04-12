@@ -146,10 +146,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="header_files\Event_Handler.h" />
     <ClCompile Include="header_files\Text_Renderer.h" />
     <ClCompile Include="src\Bezier_Curve.cpp" />
     <ClCompile Include="src\Bezier_Surface.cpp" />
     <ClCompile Include="src\Config.cpp" />
+    <ClCompile Include="src\Event_Handler.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Matrices.cpp" />
     <ClCompile Include="src\Perspective_Projection.cpp" />
