@@ -11,7 +11,8 @@ public:
 
 	Bezier_Curve();
 	std::vector<Point_2d> calc_bezier_curve();
-	void render_bezier_curve(SDL_Renderer* renderer, float x_pos, float y_pos, float scale, Render_Color color);
+	void render_bezier_curve(SDL_Renderer* renderer, float x_pos, float y_pos,
+		float scale, Render_Color color, SDL_FRect mouse_hitbox);
 	void render_2d_control_points(SDL_Renderer* renderer, float x_pos, float y_pos, float scale);
 	Point_2d check_if_control_point_in_range(SDL_FRect hitbox);
 };

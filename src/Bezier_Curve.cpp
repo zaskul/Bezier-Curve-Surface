@@ -76,13 +76,15 @@ std::vector<Point_2d> Bezier_Curve::calc_bezier_curve() {
     processed_points_2d = res_vector;
 }
 
-void Bezier_Curve::render_bezier_curve(SDL_Renderer* renderer, float x_pos, float y_pos, float scale, Render_Color color) {
+void Bezier_Curve::render_bezier_curve(SDL_Renderer* renderer, float x_pos, float y_pos, float scale, Render_Color color, SDL_FRect mouse_hitbox) {
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
     for (auto it = processed_points_2d.begin(); it != processed_points_2d.end(); it++) {
         //SDL_SetRenderScale(renderer, scale, scale);
         SDL_RenderPoint(renderer, it->x + x_pos, it->y + y_pos);
         //SDL_SetRenderScale(renderer, 1.0f, 1.0f);
     }
+    render_2d_control_points(renderer, x_pos, y_pos, scale);
+    SDL_RenderFillRect(renderer, &mouse_hitbox);
 }
 
 void Bezier_Curve::render_2d_control_points(SDL_Renderer* renderer, float x_pos, float y_pos, float scale) {

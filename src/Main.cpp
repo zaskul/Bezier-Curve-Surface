@@ -81,10 +81,8 @@ int main()
         }
         else {
             // render curves
-            SDL_SetRenderScale(renderer, event_handler.point_scale, event_handler.point_scale);
-            bezier_curve.render_bezier_curve(renderer, event_handler.x_pos, event_handler.y_pos, event_handler.point_scale, color);
-            bezier_curve.render_2d_control_points(renderer, event_handler.x_pos, event_handler.y_pos, event_handler.point_scale);
-            SDL_RenderFillRect(renderer, &event_handler.mouse_hitbox);
+            bezier_curve.render_bezier_curve(renderer, event_handler.x_pos, event_handler.y_pos,
+                event_handler.point_scale, color, event_handler.mouse_hitbox);
         }
         if (event_handler.show_help_box) {
             Help_Box::render_help_box(renderer, font, event_handler.current_color, event_handler.mouse_wheel_action, event_handler.show_2d);
