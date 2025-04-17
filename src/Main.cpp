@@ -1,24 +1,13 @@
 #include <iostream>
 #include <SDL3/SDL.h>
-#include <vector>
-#include <array>
-#include <fstream>
-#include <string>
-#include <regex>
-#include <math.h>
 #include <SDL3_ttf/SDL_ttf.h>
-#include "../header_files/Utils.h"
 #include "../header_files/Config.h"
-#include "../header_files/Point_2d.h"
-#include "../header_files/Point_3d.h"
 #include "../header_files/Render_Color.h"
 #include "../header_files/Bezier_Surface.h"
 #include "../header_files/Bezier_Curve.h"
-#include "../header_files/Matrices.h"
 #include "../header_files/Perspective_Projection.h"
 #include "../header_files/Text_Renderer.h"
 #include "../header_files/Event_Handler.h"
-#define _USE_MATH_DEFINES
 
 
 int main()
@@ -59,7 +48,6 @@ int main()
     Bezier_Curve bezier_curve = Bezier_Curve();
     Perspective_Projection projection = Perspective_Projection();
     Event_Handler event_handler = Event_Handler(bezier_surface, bezier_curve, projection, color);
-    // 3D rotation engaged
 
     while (!event_handler.quit) {
         while (SDL_PollEvent(&event_handler.e)) {

@@ -38,7 +38,7 @@ Event_Handler::Event_Handler(
     y_pos = 1.0f;
     z_offset = 6.0f;
     rotate_points = true;
-    show_2d = true;
+    show_2d = false;
     quit = false;
     show_help_box = true;
 }

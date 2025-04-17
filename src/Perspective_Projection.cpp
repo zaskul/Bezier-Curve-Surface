@@ -27,7 +27,6 @@ Perspective_Projection::Perspective_Projection() {
     proj_mat.m[3][2] = (-far * near) / (far - near);
     proj_mat.m[2][3] = 1.0f;
     proj_mat.m[3][3] = 0.0f;
-
 }
 
 void Perspective_Projection::update_rotation_matrix_angle() {
@@ -72,8 +71,6 @@ void Perspective_Projection::update_rotation_matrix_angle() {
     rot_mat_x.m[2][1] = -sinf(thetaX);
     rot_mat_x.m[2][2] = cosf(thetaX);
     rot_mat_x.m[3][3] = 1;
-
-
 }
 
 void Perspective_Projection::update_projection_matrix(Matrices::Matrix4x4& pm, float ar, float fov) {
@@ -86,13 +83,13 @@ void Perspective_Projection::apply_projection(Bezier_Surface& bs, float x_pos, f
     // 3d to 2d projection
     rot_mat_xy = Matrices::multiply_matrices(rot_mat_y, rot_mat_x);
     rot_mat = Matrices::multiply_matrices(rot_mat_z, rot_mat_xy);
-    std::vector<std::vector<Point_3d>> copy_of_control_points_3d = bs.control_points_3d;
-    for (auto it = copy_of_control_points_3d.begin(); it != copy_of_control_points_3d.end(); it++) {
+    std::vector<std::vector<Point_3d>> projected_points_vector;
+    for (auto it = bs.control_points_3d.begin(); it != bs.control_points_3d.end(); it++) {
         Matrices::multiply_matrix_vector(*it, bs.rotated_points, rot_mat);
         bs.translate_points(bs.rotated_points, z_offset);
         Matrices::multiply_matrix_vector(bs.rotated_points, bs.projected_points, proj_mat);
         bs.scale_into_view(x_pos, y_pos);
-        *it = bs.projected_points;
+        projected_points_vector.push_back(bs.projected_points);
     }
-    bs.prepare_3d_points(copy_of_control_points_3d);
+    bs.prepare_3d_points(projected_points_vector);
 }
