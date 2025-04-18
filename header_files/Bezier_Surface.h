@@ -9,6 +9,7 @@
 class Bezier_Surface {
 public:
 	Bezier_Surface();
+	Bezier_Surface(std::string file_name);
 	// init point vectors
 	std::vector<std::vector<Point_3d>> control_points_3d;
 	std::vector<Point_3d> processed_points_3d, rotated_points, projected_points;

@@ -8,6 +8,8 @@
 #include "../header_files/Point_3d.h"
 #include "../header_files/Config.h"
 #include <iostream>
+#include <string>
+
 
 // 2D curve move/add
 bool add_new_points = true;
@@ -26,10 +28,10 @@ Event_Handler::Event_Handler(
     Perspective_Projection &projection,
     Render_Color &color
     ) : 
-    color(color),
-    bs(bs),
-    bc(bc),
-    projection(projection)
+    color_ref(color),
+    bs_ref(bs),
+    bc_ref(bc),
+    projection_ref(projection)
 {
     current_color = 0;
     mouse_wheel_action = 0;
@@ -122,37 +124,37 @@ void Event_Handler::handle_key_down() {
             // object rotation
             if (e.key.key == SDLK_KP_8 || e.key.key == SDLK_UP) {
                 std::cout << "8 || UP KEY PRESSED" << std::endl;
-                projection.angle_x += rotation_angle;
+                projection_ref.angle_x += rotation_angle;
             }
             if (e.key.key == SDLK_KP_2 || e.key.key == SDLK_DOWN) {
                 std::cout << "2 || DOWN KEY PRESSED" << std::endl;
-                projection.angle_x -= rotation_angle;
+                projection_ref.angle_x -= rotation_angle;
             }
             if (e.key.key == SDLK_KP_4 || e.key.key == SDLK_LEFT) {
                 std::cout << "4 || LEFT KEY PRESSED" << std::endl;
-                projection.angle_y -= rotation_angle;
+                projection_ref.angle_y -= rotation_angle;
             }
             if (e.key.key == SDLK_KP_6 || e.key.key == SDLK_RIGHT) {
                 std::cout << "4 || LEFT KEY PRESSED" << std::endl;
-                projection.angle_y += rotation_angle;
+                projection_ref.angle_y += rotation_angle;
             }
             if (e.key.key == SDLK_KP_7 || e.key.key == SDLK_Q) {
                 std::cout << "7 || Q KEY PRESSED" << std::endl;
-                projection.angle_z -= rotation_angle;
+                projection_ref.angle_z -= rotation_angle;
             }
             if (e.key.key == SDLK_KP_9 || e.key.key == SDLK_E) {
                 std::cout << "9 || R KEY PRESSED" << std::endl;
-                projection.angle_z += rotation_angle;
+                projection_ref.angle_z += rotation_angle;
             }
             // reset to set state
             if (e.key.key == SDLK_R) {
-                projection.angle_x = 180.0f;
-                projection.angle_y = 0.0f;
+                projection_ref.angle_x = 180.0f;
+                projection_ref.angle_y = 0.0f;
                 z_offset = 6.0f;
                 x_pos = 1.0f;
                 y_pos = 1.0f;
             }
-            projection.update_rotation_matrix_angle();
+            projection_ref.update_rotation_matrix_angle();
             rotate_points = true;
         }
         else {
@@ -172,9 +174,9 @@ void Event_Handler::handle_key_down() {
                 point_scale = 1.0f;
             }
             if (e.key.key == SDLK_T) {
-                if (bc.points_2d.size() > 0) {
-                    bc.points_2d.pop_back();
-                    bc.calc_bezier_curve();
+                if (bc_ref.points_2d.size() > 0) {
+                    bc_ref.points_2d.pop_back();
+                    bc_ref.calc_bezier_curve();
                 }
             }
         }
@@ -185,7 +187,7 @@ void Event_Handler::handle_mouse_wheel() {
     if (e.wheel.y > 0) {
         std::cout << "UP" << std::endl;
         if (mouse_wheel_action == 0) {
-            color.change_color(color, current_color, color_step);
+            color_ref.change_color(color_ref, current_color, color_step);
         }
         else if (mouse_wheel_action == 1) {
             if (!show_2d) {
@@ -200,7 +202,7 @@ void Event_Handler::handle_mouse_wheel() {
     if (e.wheel.y < 0) {
         std::cout << "DOWN" << std::endl;
         if (mouse_wheel_action == 0) {
-            color.change_color(color, current_color, -color_step);
+            color_ref.change_color(color_ref, current_color, -color_step);
         }
         else if (mouse_wheel_action == 1) {
             if (!show_2d) {
@@ -224,7 +226,7 @@ void Event_Handler::handle_mouse_button_down() {
         // move control point
         mouse_hitbox = { e.button.x - mouse_hitbox_size / 2 - x_pos, e.button.y - mouse_hitbox_size / 2 - y_pos, mouse_hitbox_size, mouse_hitbox_size };
         if (move_points) {
-            point_selected = bc.check_if_control_point_in_range(mouse_hitbox);
+            point_selected = bc_ref.check_if_control_point_in_range(mouse_hitbox);
             std::cout << "x :" << point_selected.x << " y: " << point_selected.y << std::endl;
             if (point_selected.x != -1.0f && point_selected.y != -1.0f && !point_moved) {
                 change_point_pos = true;
@@ -232,7 +234,7 @@ void Event_Handler::handle_mouse_button_down() {
             }
         }
         else if (change_point_pos && !add_new_points) {
-            std::vector<std::array<Point_2d, 4>>::iterator iter = bc.points_2d.begin() + point_selected.x;
+            std::vector<std::array<Point_2d, 4>>::iterator iter = bc_ref.points_2d.begin() + point_selected.x;
             std::array<Point_2d, 4>::iterator iter2 = iter->begin() + point_selected.y;
             iter2->x = e.button.x;
             iter2->y = e.button.y;
@@ -259,7 +261,7 @@ void Event_Handler::handle_mouse_button_up() {
         is_clicked = false;
         // create a straight line
         if (!change_point_pos && !add_new_points) {
-            bc.calc_bezier_curve();
+            bc_ref.calc_bezier_curve();
             move_points = true;
             point_moved = false;
         }
@@ -277,8 +279,8 @@ void Event_Handler::handle_mouse_button_up() {
             };
             new_curve[1] = P1;
             new_curve[2] = P2;
-            bc.points_2d.push_back(new_curve);
-            bc.calc_bezier_curve();
+            bc_ref.points_2d.push_back(new_curve);
+            bc_ref.calc_bezier_curve();
             points_in_array = 0;
         }
     }

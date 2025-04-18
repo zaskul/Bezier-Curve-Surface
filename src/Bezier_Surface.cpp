@@ -2,11 +2,17 @@
 #include "../header_files//Point_3d.h"
 #include <iostream>
 #include <fstream>
+#include <string>
 #include "../header_files/Utils.h"
 #include "../header_files/Config.h"
 
 Bezier_Surface::Bezier_Surface() {
     control_points_3d = read_file("teapotCGA.txt");
+    prepare_3d_points(control_points_3d);
+}
+
+Bezier_Surface::Bezier_Surface(std::string file_name) {
+    control_points_3d = read_file(file_name);
     prepare_3d_points(control_points_3d);
 }
 

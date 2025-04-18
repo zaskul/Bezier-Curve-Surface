@@ -41,8 +41,8 @@ void Perspective_Projection::update_rotation_matrix_angle() {
     rot_mat_z.m[0][1] = sinf(thetaZ);
     rot_mat_z.m[1][0] = -sinf(thetaZ);
     rot_mat_z.m[2][0] = cosf(thetaZ);
-    rot_mat_z.m[2][2] = 1;
-    rot_mat_z.m[3][3] = 1;
+    rot_mat_z.m[2][2] = 1.0f;
+    rot_mat_z.m[3][3] = 1.0f;
 
     //rotate Y
     if (angle_y < 0.0f)
@@ -53,10 +53,10 @@ void Perspective_Projection::update_rotation_matrix_angle() {
     float thetaY = angle_y * (float)M_PI / 180.0f;
     rot_mat_y.m[0][0] = cosf(thetaY);
     rot_mat_y.m[0][2] = -sinf(thetaY);
-    rot_mat_y.m[1][1] = 1;
+    rot_mat_y.m[1][1] = 1.0f;
     rot_mat_y.m[2][0] = sinf(thetaY);
     rot_mat_y.m[2][2] = cosf(thetaY);
-    rot_mat_y.m[3][3] = 1;
+    rot_mat_y.m[3][3] = 1.0f;
 
     // rotate X
     if (angle_x < 0.0f)
@@ -65,12 +65,12 @@ void Perspective_Projection::update_rotation_matrix_angle() {
         angle_x = angle_x - 360.0f;
 
     float thetaX = angle_x * (float)M_PI / 180.0f;
-    rot_mat_x.m[0][0] = 1;
+    rot_mat_x.m[0][0] = 1.0f;
     rot_mat_x.m[1][1] = cosf(thetaX);
     rot_mat_x.m[1][2] = sinf(thetaX);
     rot_mat_x.m[2][1] = -sinf(thetaX);
     rot_mat_x.m[2][2] = cosf(thetaX);
-    rot_mat_x.m[3][3] = 1;
+    rot_mat_x.m[3][3] = 1.0f;
 }
 
 void Perspective_Projection::update_projection_matrix(Matrices::Matrix4x4& pm, float ar, float fov) {

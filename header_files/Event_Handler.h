@@ -4,16 +4,18 @@
 #include "Perspective_Projection.h"
 #include "Config.h"
 #include "Render_Color.h"
+#include <string>
 class Event_Handler {
 public:
-	Event_Handler(Bezier_Surface &bs, Bezier_Curve &bc, Perspective_Projection &projection, Render_Color &color);
+	Event_Handler(Bezier_Surface &bs, Bezier_Curve &bc,
+		Perspective_Projection &projection, Render_Color &color);
 	SDL_Event e;
 	bool quit, show_2d, rotate_points, show_help_box;
 	SDL_FRect mouse_hitbox = { 0.0f, 0.0f, 0.0f, 0.0f };
-	Bezier_Surface &bs;
-	Bezier_Curve &bc;
-	Perspective_Projection &projection;
-	Render_Color &color;
+	Bezier_Surface bs_ref;
+	Bezier_Curve bc_ref;
+	Perspective_Projection projection_ref;
+	Render_Color color_ref;
 	short current_color;
 	short mouse_wheel_action;
 	float point_scale;

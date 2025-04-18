@@ -44,7 +44,7 @@ int main()
     // init variables
     Render_Color color = { 255, 0, 0, 255 };
     Render_Color bg_color = { 0, 0, 0, 255 };
-    Bezier_Surface bezier_surface = Bezier_Surface();
+    Bezier_Surface bezier_surface = Bezier_Surface("teapotCGA.txt");
     Bezier_Curve bezier_curve = Bezier_Curve();
     Perspective_Projection projection = Perspective_Projection();
     Event_Handler event_handler = Event_Handler(bezier_surface, bezier_curve, projection, color);
