@@ -12,10 +12,10 @@ public:
 	SDL_Event e;
 	bool quit, show_2d, rotate_points, show_help_box;
 	SDL_FRect mouse_hitbox = { 0.0f, 0.0f, 0.0f, 0.0f };
-	Bezier_Surface bs_ref;
-	Bezier_Curve bc_ref;
-	Perspective_Projection projection_ref;
-	Render_Color color_ref;
+	Bezier_Surface &bs_ref;
+	Bezier_Curve &bc_ref;
+	Perspective_Projection &projection_ref;
+	Render_Color &color_ref;
 	short current_color;
 	short mouse_wheel_action;
 	float point_scale;

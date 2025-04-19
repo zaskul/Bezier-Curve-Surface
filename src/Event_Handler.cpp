@@ -28,11 +28,11 @@ Event_Handler::Event_Handler(
     Perspective_Projection &projection,
     Render_Color &color
     ) : 
-    color_ref(color),
     bs_ref(bs),
     bc_ref(bc),
-    projection_ref(projection)
-{
+    projection_ref(projection),
+    color_ref(color)
+    {
     current_color = 0;
     mouse_wheel_action = 0;
     point_scale = 1.0f;
@@ -43,10 +43,13 @@ Event_Handler::Event_Handler(
     show_2d = false;
     quit = false;
     show_help_box = true;
-}
+    }
 
 void Event_Handler::handle_events() {
-	if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+    if (e.type == SDL_EVENT_QUIT) {
+        quit = true;
+    }
+	else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
 		handle_mouse_button_down();
 	} 
 	else if (e.type == SDL_EVENT_MOUSE_BUTTON_UP) {
@@ -57,9 +60,6 @@ void Event_Handler::handle_events() {
 	} 
 	else if (e.type == SDL_EVENT_KEY_DOWN) {
 		handle_key_down();
-	}
-	else if (e.type == SDL_EVENT_QUIT) {
-		quit = true;
 	}
 }
 

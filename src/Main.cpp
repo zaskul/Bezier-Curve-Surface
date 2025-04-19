@@ -53,6 +53,9 @@ int main()
         while (SDL_PollEvent(&event_handler.e)) {
             event_handler.handle_events();
         }
+        if (event_handler.quit == true) {
+            break;
+        }
         // ONLY FOR 3D
         if (!event_handler.show_2d && event_handler.rotate_points) {
             projection.apply_projection(bezier_surface, event_handler.x_pos, event_handler.y_pos, event_handler.z_offset);

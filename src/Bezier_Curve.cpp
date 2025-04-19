@@ -18,22 +18,12 @@ Bezier_Curve::Bezier_Curve() {
     { {{ 131.f, 86.f }, { 131.f, 96.f }, { 124.f, 195.f }, { 119.f, 209.f }} },
     { {{ 119.f, 209.f }, { 110.f, 227.f }, { 84.f, 228.f }, { 83.f, 217.f }} },
     { {{ 83.f, 217.f }, { 79.f, 180.f}, { 136.f, 215.f }, { 142.f, 223.f }} },
-    { {{ 142.f, 223.f }, { 154.f, 239.f }, { 195.f, 204.f}, { 193.f, 197.f }} }
-    };
-
-    // add the crossing line
-    float x_offset = 30.f;
-    float y_offset = 60.f;
-    points_2d.push_back({
-        {{(88.f + x_offset) / 2.f, (193.f + y_offset) / 2.f},
-         {(294.f + x_offset) / 2.f, (113.f + y_offset) / 2.f},
-         {(189.f - x_offset) / 2.f, (282.f + y_offset) / 2.f},
-         {(394.f - x_offset) / 2.f, (188.f + y_offset) / 2.f}}
-        });
+    { {{ 142.f, 223.f }, { 154.f, 239.f }, { 195.f, 204.f}, { 193.f, 197.f }} },
+    { {{ 59.f , 126.5f}, {162.f, 86.5f}, {79.5f, 171.f}, {182.f, 124.f} }} };
 
     // move the letter to center of the screen
-    x_offset = (float)Config::WINDOW_WIDTH / 3;
-    y_offset = (float)Config::WINDOW_HEIGHT / 3;
+    float x_offset = (float)Config::WINDOW_WIDTH / 3;
+    float y_offset = (float)Config::WINDOW_HEIGHT / 3;
     for (auto it = points_2d.begin(); it != points_2d.end(); it++) {
         for (auto inner_it = it->begin(); inner_it != it->end(); inner_it++) {
             inner_it->x += x_offset;
